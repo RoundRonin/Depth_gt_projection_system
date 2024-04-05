@@ -14,7 +14,7 @@ message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 
 link_directories(${OpenCV_LIBRARY_DIRS}) # CV
 
-ADD_EXECUTABLE(${PROJECT_NAME} include/utils.hpp src/main.cpp) ## !
+ADD_EXECUTABLE(${PROJECT_NAME} src/main.cpp) ## !
 
 TARGET_LINK_LIBRARIES(
     ${PROJECT_NAME} 

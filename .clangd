@@ -1,14 +1,11 @@
 CompileFlags:
   Add: 
     [
-      -std=c++14,
-      -I/usr/local/zed/include, 
-      -I/usr/local/zed/include/sl,
+      -std=c++17,
       -I/usr/include/opencv4,
       -I/./**,
       -I/usr/include/,
       -I/usr/include/linux,
-      -I/home/roundronin/include
     ]
   # Add:  [
   #   ],

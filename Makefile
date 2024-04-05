@@ -6,9 +6,9 @@ build:
     fi
 	cd build && cmake ..
 	cd build && make
-	ln -s ./build/Task ./Task
+	ln -s ./build/ImageProcessing ./ImageProcessing
 
 .phony: clean 
 clean:
 	rm -rf ./build
-	rm ./Task
+	rm ./ImageProcessing
