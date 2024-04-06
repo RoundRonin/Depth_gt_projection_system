@@ -4,3 +4,5 @@ build
 SVO_examples
 images
 Results
+*.png
+*.avi

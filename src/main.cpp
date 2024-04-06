@@ -10,8 +10,10 @@ using namespace cv;
 using namespace std;
 
 class Image {
-    cv::Mat image;
     cv::Mat objects;
+
+  public:
+    cv::Mat image;
 
   public:
     Image(string path) {
@@ -55,6 +57,7 @@ class Image {
         CV_Assert(image.depth() == CV_8U);
         int nRows = image.rows;
         int nCols = image.cols;
+        uchar id = 100;
 
         for (int i = 0; i < nRows; i++) {
             for (int j = 0; j < nCols; j++) {
@@ -67,8 +70,8 @@ class Image {
 
                 cv::Point current(j, i);
 
-                uchar id = 100;
                 paint(image, objects, z_limit, current, id);
+                id = (id + 10) % 255;
             }
         }
 
@@ -123,6 +126,8 @@ class Image {
     }
 };
 
+class Templates {};
+
 int main(int argc, char **argv) {
 
     if (argc <= 1) {
@@ -147,6 +152,68 @@ int main(int argc, char **argv) {
 
     image.write("e_d_e_d_e_d.png");
     image.findObjects(atoi(argv[2]));
+
+    int width = image.image.cols;
+    int height = image.image.rows;
+    cv::Size size = image.image.size();
+
+    VideoWriter video("color_gradient.avi",
+                      VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, size);
+
+    if (!video.isOpened()) {
+        return -1;
+    }
+
+    // for (int i = 0; i < 10 * 60; i++) {
+    //     Mat frame = Mat::zeros(height, width, CV_8UC3);
+    //     uchar r = 255 * i / (10 * 60);
+    //     uchar g = 255 * (10 * 60 - i) / (10 * 60);
+    //     uchar b = 0;
+
+    //     if (i >= 5 * 60) {
+    //         r = 0;
+    //         b = 255 * (i - 5 * 60) / (5 * 60);
+    //     }
+
+    //     rectangle(frame, Point(0, 0), Point(width / 2, height / 2),
+    //               Scalar(b, g, r), -1);
+    //     rectangle(frame, Point(width / 2, width / 2), Point(width, height),
+    //               Scalar(r, g, r), -1);
+
+    //     video.write(frame);
+    // }
+
+    int chessboardSize = 20; // Size of each square in the chessboard
+    int filler = 2 * chessboardSize;
+    int speedX = 1;
+    int speedY = 1;
+    for (int i = 0; i < 10 * 60; i++) { // 10 seconds at 60 fps
+        Mat frame = Mat::zeros(height, width, CV_8UC3);
+
+        int offsetX = -(filler) + i * speedX % (filler);
+
+        int offsetY = -(filler) + i * speedY % (filler);
+
+        for (int y = 0; y < height + filler; y += chessboardSize) {
+            for (int x = 0; x < width + filler; x += chessboardSize) {
+                if (x / chessboardSize % 2 == (y / chessboardSize) % 2) {
+                    rectangle(frame, Point(x + offsetX, y + offsetY),
+                              Point(x + chessboardSize + offsetX,
+                                    y + chessboardSize + offsetY),
+                              Scalar(255, 255, 255), -1);
+                } else {
+                    rectangle(frame, Point(x + offsetX, y + offsetY),
+                              Point(x + chessboardSize + offsetX,
+                                    y + chessboardSize + offsetY),
+                              Scalar(0, 0, 0), -1);
+                }
+            }
+        }
+
+        video.write(frame);
+    }
+
+    video.release();
 
     return EXIT_SUCCESS;
 }
