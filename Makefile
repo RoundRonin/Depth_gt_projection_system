@@ -35,7 +35,7 @@ r:
 
 	ln -s ./build/ImageProcessing ./ImageProcessing
 
-	./ImageProcessing ./images/capture_depth_468.png 10
+	./ImageProcessing ./images/test.png 10
 
 .phony: clean 
 clean:

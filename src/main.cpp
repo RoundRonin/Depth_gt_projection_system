@@ -14,6 +14,7 @@ class Image {
 
   public:
     cv::Mat image;
+    vector<cv::Mat> mask_mats;
 
   public:
     Image(string path) {
@@ -54,11 +55,17 @@ class Image {
         if (image.empty())
             return;
 
+        cout << "Stage 1" << endl;
         CV_Assert(image.depth() == CV_8U);
         int nRows = image.rows;
         int nCols = image.cols;
-        uchar id = 100;
+        uchar id = UCHAR_MAX;
+        int minDots = 1000;
+        int maxObjects = 5;
 
+        vector<tuple<cv::Mat, int>> masks;
+
+        int a = 0;
         for (int i = 0; i < nRows; i++) {
             for (int j = 0; j < nCols; j++) {
                 uchar val = image.at<uchar>(i, j);
@@ -68,11 +75,27 @@ class Image {
                 if (objects.at<uchar>(i, j) != 0)
                     continue;
 
-                cv::Point current(j, i);
-
-                paint(image, objects, z_limit, current, id);
-                id = (id + 10) % 255;
+                cv::Point current(j, i); // x, y
+                cv::Mat output = paint(image, objects, z_limit, current, id);
+                int dots = countNonZero(output);
+                if (dots >= minDots)
+                    masks.push_back({output, dots});
             }
+        }
+
+        std::sort(masks.begin(), masks.end(),
+                  [](auto const &t1, auto const &t2) {
+                      return get<1>(t1) < get<1>(t2);
+                  });
+
+        for (auto var : masks) {
+            cout << get<1>(var);
+            cout << endl;
+        }
+
+        for (int i = 0; i < maxObjects; i++) {
+            mask_mats.push_back(get<0>(masks.at(i)));
+            imwrite("mask " + to_string(i) + " .png", get<0>(masks.at(i)));
         }
 
         imwrite("objects.png", objects);
@@ -81,52 +104,138 @@ class Image {
   private:
     int directions[4][2] = {{1, 0}, {0, 1}, {0, -1}, {-1, 0}};
 
-    bool walk(cv::Mat &image, cv::Mat &objects, uchar z_limit, uchar prev_z,
-              cv::Point current, vector<cv::Point> path, uchar id) {
+    bool walk(cv::Mat &image, cv::Mat &objects, cv::Mat &output, uchar z_limit,
+              uchar prev_z, cv::Point current, vector<cv::Point> path,
+              uchar id) {
         // Base case:
         // 1. Pixel is off the map
-        if (!image.at<uchar>(current)) //!
+        // cout << "new: ";
+        // cout << "1 ";
+        if (current.x > image.cols || current.y > image.rows)
             return false;
 
+        // cout << "2 " << image.at<uchar>(current);
         // 2. Pixel is black
         if (image.at<uchar>(current) == 0)
             return false;
 
+        // cout << "3 ";
         // 3. Pixel is in the objects
         if (objects.at<uchar>(current) != 0)
             return false;
 
+        // cout << "4 ";
         // 4. z_limit exceeded
         if (abs(image.at<uchar>(current) - prev_z) > z_limit)
             return false;
+        // cout << endl;
 
-        objects.at<uchar>(current) = id; // Painting the pixel
+        // cout << current.x << " " << current.y << endl;
+        objects.at<uchar>(current) = id;       // Painting the pixel
+        output.at<uchar>(current) = UCHAR_MAX; // Painting the pixel
 
+        // cout << "pushing..." << endl;
         path.push_back(current);
         // recurse
+        cout << "recursing..." << endl;
         for (int i = 0; i < 4; i++) {
             int x = directions[i][0];
             int y = directions[i][1];
 
-            cv::Point next(y, x);
+            // cout << endl << i << ": " << x << " " << y << endl;
+            cv::Point next(current.x + x, current.y + y);
             uchar current_z = image.at<uchar>(current);
-            walk(image, objects, z_limit, current_z, next, path, id);
+            // cout << "..." << endl;
+            walk(image, objects, output, z_limit, current_z, next, path, id);
         }
 
+        // cout << "popping..." << endl;
         if (path.size() == 0)
             return false;
         path.pop_back();
+
+        return false;
     }
-    void paint(cv::Mat &image, cv::Mat &objects, int z_limit, cv::Point start,
-               uchar id) {
+
+    cv::Mat paint(cv::Mat &image, cv::Mat &objects, int z_limit,
+                  cv::Point start, uchar id) {
+        cv::Mat output = cv::Mat(image.size(), image.type());
         vector<cv::Point> path;
         uchar start_z = image.at<uchar>(start);
 
-        walk(image, objects, z_limit, start_z, start, path, id);
+        walk(image, objects, output, z_limit, start_z, start, path, id);
+
+        return output;
     }
 };
 
-class Templates {};
+class Templates {
+
+    int chessboardSize = 20; // Size of each square in the chessboard
+    int filler = 2 * chessboardSize;
+    int speedX = 1;
+    int speedY = 1;
+
+    int width = 1280;
+    int height = 720;
+
+  public:
+    Templates(cv::Mat mask) {
+        width = mask.cols;
+        height = mask.rows;
+    }
+
+    cv::Mat gradient(int iter, cv::Mat mask) {
+        Mat frame = Mat::zeros(height, width, CV_8UC3);
+        uchar r = 255 * iter / (10 * 60);
+        uchar g = 255 * (10 * 60 - iter) / (10 * 60);
+        uchar b = 0;
+
+        if (iter >= 5 * 60) {
+            r = 0;
+            b = 255 * (iter - 5 * 60) / (5 * 60);
+        }
+
+        rectangle(frame, Point(0, 0), Point(width / 2, height / 2),
+                  Scalar(b, g, r), -1);
+        rectangle(frame, Point(width / 2, width / 2), Point(width, height),
+                  Scalar(r, g, r), -1);
+
+        cv::Mat masked;
+        cv::bitwise_and(frame, frame, masked, mask);
+
+        return masked;
+    }
+
+    cv::Mat chessBoard(int iter, cv::Mat mask) {
+        Mat frame = Mat::zeros(height, width, CV_8UC3);
+
+        int offsetX = -(filler) + iter * speedX % (filler);
+
+        int offsetY = -(filler) + iter * speedY % (filler);
+
+        for (int y = 0; y < height + filler; y += chessboardSize) {
+            for (int x = 0; x < width + filler; x += chessboardSize) {
+                if (x / chessboardSize % 2 == (y / chessboardSize) % 2) {
+                    rectangle(frame, Point(x + offsetX, y + offsetY),
+                              Point(x + chessboardSize + offsetX,
+                                    y + chessboardSize + offsetY),
+                              Scalar(255, 255, 255), -1);
+                } else {
+                    rectangle(frame, Point(x + offsetX, y + offsetY),
+                              Point(x + chessboardSize + offsetX,
+                                    y + chessboardSize + offsetY),
+                              Scalar(0, 0, 0), -1);
+                }
+            }
+        }
+
+        cv::Mat masked;
+        cv::bitwise_and(frame, frame, masked, mask);
+
+        return masked;
+    }
+};
 
 int main(int argc, char **argv) {
 
@@ -164,53 +273,9 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    // for (int i = 0; i < 10 * 60; i++) {
-    //     Mat frame = Mat::zeros(height, width, CV_8UC3);
-    //     uchar r = 255 * i / (10 * 60);
-    //     uchar g = 255 * (10 * 60 - i) / (10 * 60);
-    //     uchar b = 0;
-
-    //     if (i >= 5 * 60) {
-    //         r = 0;
-    //         b = 255 * (i - 5 * 60) / (5 * 60);
-    //     }
-
-    //     rectangle(frame, Point(0, 0), Point(width / 2, height / 2),
-    //               Scalar(b, g, r), -1);
-    //     rectangle(frame, Point(width / 2, width / 2), Point(width, height),
-    //               Scalar(r, g, r), -1);
-
-    //     video.write(frame);
-    // }
-
-    int chessboardSize = 20; // Size of each square in the chessboard
-    int filler = 2 * chessboardSize;
-    int speedX = 1;
-    int speedY = 1;
+    Templates templates(image.image);
     for (int i = 0; i < 10 * 60; i++) { // 10 seconds at 60 fps
-        Mat frame = Mat::zeros(height, width, CV_8UC3);
-
-        int offsetX = -(filler) + i * speedX % (filler);
-
-        int offsetY = -(filler) + i * speedY % (filler);
-
-        for (int y = 0; y < height + filler; y += chessboardSize) {
-            for (int x = 0; x < width + filler; x += chessboardSize) {
-                if (x / chessboardSize % 2 == (y / chessboardSize) % 2) {
-                    rectangle(frame, Point(x + offsetX, y + offsetY),
-                              Point(x + chessboardSize + offsetX,
-                                    y + chessboardSize + offsetY),
-                              Scalar(255, 255, 255), -1);
-                } else {
-                    rectangle(frame, Point(x + offsetX, y + offsetY),
-                              Point(x + chessboardSize + offsetX,
-                                    y + chessboardSize + offsetY),
-                              Scalar(0, 0, 0), -1);
-                }
-            }
-        }
-
-        video.write(frame);
+        video.write(templates.chessBoard(i, image.image));
     }
 
     video.release();
