@@ -78,30 +78,11 @@ class Image {
                 cv::Point current(j, i); // x, y
                 cv::Mat output = paint(image, objects, z_limit, current, id);
                 mask_mats.push_back(output);
-                // try {
-                //     /* code */
-                //     int dots = countNonZero(output);
-                //     if (dots >= minDots)
-                //         masks.push_back({output, dots});
-                // } catch (const std::exception &e) {
-                //     std::cerr << e.what() << '\n';
-                // }
+
             }
         }
 
-        // std::sort(masks.begin(), masks.end(),
-        //           [](auto const &t1, auto const &t2) {
-        //               return get<1>(t1) > get<1>(t2);
-        //           });
-
-        // for (auto var : masks) {
-        //     cout << get<1>(var);
-        //     cout << endl;
-        // }
-
         for (int i = 0; i < maxObjects; i++) {
-            // mask_mats.push_back(get<0>(masks.at(i)));
-            // imwrite("mask " + to_string(i) + " .png", get<0>(masks.at(i)));
             cv::Mat masked;
             cv::bitwise_and(mask_mats.at(i), mask_mats.at(i), masked, objects);
 
@@ -130,49 +111,39 @@ class Image {
     bool walk(cv::Mat &image, cv::Mat &objects, cv::Mat &output, uchar z_limit,
               uchar prev_z, cv::Point current, vector<cv::Point> path,
               uchar id) {
-        // Base case:
-        // 1. Pixel is off the map
-        // cout << "new: ";
-        // cout << "1 ";
+
         if (current.x > image.cols || current.y > image.rows)
             return false;
 
-        // cout << "2 " << image.at<uchar>(current);
-        // 2. Pixel is black
+
         if (image.at<uchar>(current) == 0)
             return false;
 
-        // cout << "3 ";
-        // 3. Pixel is in the objects
+
         if (objects.at<uchar>(current) != 0)
             return false;
 
-        // cout << "4 ";
-        // 4. z_limit exceeded
+
         if (abs(image.at<uchar>(current) - prev_z) > z_limit)
             return false;
-        // cout << endl;
 
-        // cout << current.x << " " << current.y << endl;
         objects.at<uchar>(current) = id; // Painting the pixel
         output.at<uchar>(current) = id;  // Painting the pixel
 
-        // cout << "pushing..." << endl;
         path.push_back(current);
+
         // recurse
-        // cout << "recursing..." << endl;
+
         for (int i = 0; i < 4; i++) {
             int x = directions[i][0];
             int y = directions[i][1];
 
-            // cout << endl << i << ": " << x << " " << y << endl;
             cv::Point next(current.x + x, current.y + y);
             uchar current_z = image.at<uchar>(current);
-            // cout << "..." << endl;
+
             walk(image, objects, output, z_limit, current_z, next, path, id);
         }
 
-        // cout << "popping..." << endl;
         if (path.size() == 0)
             return false;
         path.pop_back();
