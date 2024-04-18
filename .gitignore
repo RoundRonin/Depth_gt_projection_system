@@ -3,8 +3,10 @@ build
 build
 SVO_examples
 images
-Results
+Result/**
 ImageProcessing_Debug
 ImageProcessing_Release
+callgrind*
+log*
 *.png
 *.avi

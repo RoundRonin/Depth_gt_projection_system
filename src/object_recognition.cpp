@@ -1,53 +1,64 @@
 #include "object_recognition.hpp"
+#include <chrono>
+#include <ctime>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
 
-Image::Image(std::string path, std::string output_location) {
-    image = cv::imread(path, cv::IMREAD_GRAYSCALE);
-    objects = cv::Mat(image.size(), image.type());
+using namespace std;
+using namespace cv;
+namespace fs = std::filesystem;
+
+Image::Image(string path, string output_location) {
+    image = imread(path, IMREAD_GRAYSCALE);
+    objects = Mat(image.size(), image.type());
     out_path = output_location; // TODO add checks
 }
 
-void Image::write(std::string path) { cv::imwrite(path, image); }
+void Image::write(string path) { imwrite(path, image); }
 
-cv::Mat Image::erode(int erosion_dst, int erosion_size) {
-    int erosion_type = cv::MORPH_ELLIPSE;
-    cv::Mat element = cv::getStructuringElement(
-        erosion_type, cv::Size(2 * erosion_size + 1, 2 * erosion_size + 1),
-        cv::Point(erosion_size, erosion_size));
+Mat Image::erode(int erosion_dst, int erosion_size) {
+    int erosion_type = MORPH_ELLIPSE;
+    Mat element = getStructuringElement(
+        erosion_type, Size(2 * erosion_size + 1, 2 * erosion_size + 1),
+        Point(erosion_size, erosion_size));
 
-    cv::Mat output;
+    Mat output;
     cv::erode(image, output, element);
 
     image = output;
     return output;
 }
 
-cv::Mat Image::dilate(int dilation_dst, int dilation_size) {
-    int dilation_type = cv::MORPH_ELLIPSE;
-    cv::Mat element = cv::getStructuringElement(
-        dilation_type, cv::Size(2 * dilation_size + 1, 2 * dilation_size + 1),
-        cv::Point(dilation_size, dilation_size));
+Mat Image::dilate(int dilation_dst, int dilation_size) {
+    int dilation_type = MORPH_ELLIPSE;
+    Mat element = getStructuringElement(
+        dilation_type, Size(2 * dilation_size + 1, 2 * dilation_size + 1),
+        Point(dilation_size, dilation_size));
 
-    cv::Mat output;
+    Mat output;
     cv::dilate(image, output, element);
 
     image = output;
     return output;
 }
 
-void Image::findObjects(uchar z_limit) {
-    std::cout << "using z_limit = " << (int)z_limit << std::endl;
+void Image::findObjects(uchar z_limit, int minDots, int maxObjects) {
+    cout << "using z_limit = " << (int)z_limit << endl;
     if (image.empty())
         return;
 
-    std::cout << "Stage 1" << std::endl;
     CV_Assert(image.depth() == CV_8U);
     int nRows = image.rows;
     int nCols = image.cols;
     uchar id = UCHAR_MAX;
-    int minDots = 1000;
-    int maxObjects = 5;
 
-    std::vector<std::tuple<cv::Mat, int>> masks;
+    // vector<tuple<Mat, int>> masks;
+
+    //! TIME
+    auto start = chrono::high_resolution_clock::now();
+    vector<chrono::microseconds> figure_durations;
 
     int a = 0;
     for (int i = 0; i < nRows; i++) {
@@ -59,39 +70,61 @@ void Image::findObjects(uchar z_limit) {
             if (objects.at<uchar>(i, j) != 0)
                 continue;
 
-            cv::Point current(j, i); // x, y
-            cv::Mat output = paint(image, objects, z_limit, current, id);
+            //! TIME
+            auto recurse_start = chrono::high_resolution_clock::now();
+
+            Point current(j, i);                                      // x, y
+            Mat output = paint(image, objects, z_limit, current, id); //!
             mask_mats.push_back(output);
+
+            //! TIME
+            auto recurse_stop = chrono::high_resolution_clock::now();
+            auto recurse_duration = chrono::duration_cast<chrono::microseconds>(
+                recurse_stop - recurse_start);
+            figure_durations.push_back(recurse_duration);
         }
     }
 
-    for (int i = 0; i < maxObjects; i++) {
-        cv::Mat masked;
-        cv::bitwise_and(mask_mats.at(i), mask_mats.at(i), masked, objects);
+    //! TIME
+    auto stop = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
 
-        // CLEAN UP!! TODO remove
-        int erosion_size = 3;
-
-        int erosion_type = cv::MORPH_ELLIPSE;
-        cv::Mat element = cv::getStructuringElement(
-            erosion_type, cv::Size(2 * erosion_size + 1, 2 * erosion_size + 1),
-            cv::Point(erosion_size, erosion_size));
-
-        cv::Mat output;
-        cv::erode(masked, output, element);
-        cv::dilate(output, output, element);
-        mask_mats.at(i) = output;
-
-        cv::imwrite(out_path + "mask " + std::to_string(i) + " .png",
-                    mask_mats.at(i));
+    int version = 1;
+    int batch = 2;
+    string log_name = "recurse_log";
+    log_system_stats(duration, "overall", version, batch, log_name);
+    int iter = 0;
+    for (auto duration : figure_durations) {
+        log_system_stats(duration, "figure " + to_string(iter), version, batch,
+                         log_name);
+        iter++;
     }
 
-    cv::imwrite(out_path + "objects.png", objects);
+    for (int i = 0; i < maxObjects; i++) {
+        // Mat masked;
+        // bitwise_and(mask_mats.at(i), mask_mats.at(i), masked, objects);
+
+        // // CLEAN UP!! //TODO remove
+        // int erosion_size = 3;
+
+        // int erosion_type = MORPH_ELLIPSE;
+        // Mat element = getStructuringElement(
+        //     erosion_type, Size(2 * erosion_size + 1, 2 * erosion_size + 1),
+        //     Point(erosion_size, erosion_size));
+
+        // Mat output;
+        // cv::erode(masked, output, element);
+        // cv::dilate(output, output, element);
+        // mask_mats.at(i) = output;
+
+        imwrite(out_path + "mask " + to_string(i) + " .png", mask_mats.at(i));
+    }
+
+    imwrite(out_path + "objects.png", objects);
 }
 
-bool Image::walk(cv::Mat &image, cv::Mat &objects, cv::Mat &output,
-                 uchar z_limit, uchar prev_z, cv::Point current,
-                 std::vector<cv::Point> path, uchar id) {
+bool Image::walk(Mat &image, Mat &objects, Mat &output, uchar z_limit,
+                 uchar prev_z, Point current, vector<Point> path, uchar id) {
 
     if (current.x > image.cols || current.y > image.rows)
         return false;
@@ -116,7 +149,7 @@ bool Image::walk(cv::Mat &image, cv::Mat &objects, cv::Mat &output,
         int x = directions[i][0];
         int y = directions[i][1];
 
-        cv::Point next(current.x + x, current.y + y);
+        Point next(current.x + x, current.y + y);
         uchar current_z = image.at<uchar>(current);
 
         walk(image, objects, output, z_limit, current_z, next, path, id);
@@ -129,14 +162,70 @@ bool Image::walk(cv::Mat &image, cv::Mat &objects, cv::Mat &output,
     return false;
 }
 
-cv::Mat Image::paint(cv::Mat &image, cv::Mat &objects, int z_limit,
-                     cv::Point start, uchar id) {
-    // cv::Mat output = cv::Mat::zeros(image.rows, image.cols, CV_8UC3);
-    cv::Mat output = cv::Mat(image.size(), image.type());
-    std::vector<cv::Point> path;
+Mat Image::paint(Mat &image, Mat &objects, int z_limit, Point start, uchar id) {
+    // Mat output = Mat::zeros(image.rows, image.cols, CV_8UC3);
+    Mat output = Mat(image.size(), image.type());
+    vector<Point> path;
     uchar start_z = image.at<uchar>(start);
 
     walk(image, objects, output, z_limit, start_z, start, path, id);
 
     return output;
+}
+
+enum time { second = 1, ms = 1000, mcs = 1000000 };
+
+void Image::printTimeTaken(chrono::microseconds time_taken,
+                           string function_name) {
+    cout << "Time taken by " + function_name + " is: " << fixed
+         << chrono::duration<double, ratio<1, time::second>>(time_taken).count()
+         << setprecision(5);
+    cout << " sec " << endl;
+}
+
+void Image::log_system_stats(chrono::microseconds time_taken,
+                             string function_name, int version, int batch,
+                             string log_name) {
+    time_t now = chrono::system_clock::to_time_t(chrono::system_clock::now());
+
+    string log_line =
+        "{\"version\": " + to_string(version) +
+        ", \"batch\": " + to_string(batch) + ", \"now\": " + to_string(now) +
+        ", \"taken\": " +
+        to_string(chrono::duration<double, ratio<1, time::second>>(time_taken)
+                      .count()) +
+        ", \"function\": \"" + function_name + "\"}";
+    log_line.push_back(']');
+
+    string file_path = "logs/" + log_name + ".json";
+    if (!fs::exists(file_path)) {
+        ofstream file(file_path);
+        file << "[";
+    }
+
+    fstream file(file_path, ios::in | ios::out | ios::ate);
+    if (!file.is_open()) {
+        cerr << "Failed to open log file" << endl;
+        return;
+    }
+
+    streampos file_len = file.tellg();
+
+    if (file_len > 1) {
+        file.seekp(file_len - 2);
+        char last_byte;
+        file >> last_byte;
+
+        if (last_byte == ']') {
+            file.seekp(file_len - 2);
+            file << ",";
+        } else {
+            file.seekp(file_len - 1);
+            file << ",";
+        }
+        file << endl;
+    }
+
+    // Write the log line
+    file << log_line << endl;
 }

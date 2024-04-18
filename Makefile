@@ -15,7 +15,7 @@ r:
 	cd build/release && cmake -DCMAKE_BUILD_TYPE=Release ../..
 	cd build/release && make
 
-	ln -s ./build/ImageProcessing ./ImageProcessing_Release
+	ln -s ./build/release/ImageProcessing ./ImageProcessing_Release
 
 .phony: d
 d: 
@@ -34,6 +34,7 @@ d:
 	cd build/debug && make
 
 	ln -s ./build/debug/ImageProcessing ./ImageProcessing_Debug
+
 .phony: go
 go: 
 	@if [ -d "build" ]; then \

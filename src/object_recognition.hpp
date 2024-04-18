@@ -23,7 +23,8 @@ class Image {
 
     cv::Mat dilate(int dilation_dst, int dilation_size);
 
-    void findObjects(uchar z_limit = 10);
+    void findObjects(uchar z_limit = 10, int minDots = 1000,
+                     int maxObjects = 5);
 
   private:
     int directions[4][2] = {{1, 0}, {0, 1}, {0, -1}, {-1, 0}};
@@ -34,6 +35,12 @@ class Image {
 
     cv::Mat paint(cv::Mat &image, cv::Mat &objects, int z_limit,
                   cv::Point start, uchar id);
+
+    void printTimeTaken(std::chrono::microseconds time_taken,
+                        std::string function_name);
+    void log_system_stats(std::chrono::microseconds time_taken,
+                          std::string function_name, int version, int batch,
+                          std::string log_name);
 };
 
 #endif
