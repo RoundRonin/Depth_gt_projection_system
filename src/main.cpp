@@ -78,7 +78,6 @@ class Image {
                 cv::Point current(j, i); // x, y
                 cv::Mat output = paint(image, objects, z_limit, current, id);
                 mask_mats.push_back(output);
-
             }
         }
 
@@ -115,14 +114,11 @@ class Image {
         if (current.x > image.cols || current.y > image.rows)
             return false;
 
-
         if (image.at<uchar>(current) == 0)
             return false;
 
-
         if (objects.at<uchar>(current) != 0)
             return false;
-
 
         if (abs(image.at<uchar>(current) - prev_z) > z_limit)
             return false;
