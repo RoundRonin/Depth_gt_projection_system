@@ -4,5 +4,7 @@ build
 SVO_examples
 images
 Results
+ImageProcessing_Debug
+ImageProcessing_Release
 *.png
 *.avi

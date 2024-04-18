@@ -3,7 +3,7 @@ PROJECT(ImageProcessing)
 
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-SET(CMAKE_BUILD_TYPE "Release")
+# SET(CMAKE_BUILD_TYPE "Release")
 
 find_package(OpenCV REQUIRED) # CV
 
