@@ -16,12 +16,11 @@ class Templates {
     int height = 720;
 
   public:
-    Templates(cv::Mat mask) {}
+    Templates(cv::Mat mask);
 
-    cv::Mat gradient(int iter, cv::Mat mask, int a) {}
+    cv::Mat gradient(int iter, cv::Mat mask, int a);
 
-    cv::Mat chessBoard(int iter, cv::Mat mask, int speedX = 1, int speedY = 1) {
-    }
+    cv::Mat chessBoard(int iter, cv::Mat mask, int speedX = 1, int speedY = 1);
 };
 
 #endif

@@ -1,13 +1,12 @@
 
-#include "object_recognition.hpp"
-#include "templategen.hpp"
+#include "object_recognition.cpp"
+#include "templategen.cpp"
 
 using namespace cv;
 using namespace std;
 
 int main(int argc, char **argv) {
 
-    std::cout << "Helo" << std::endl;
     string OutputLocation = "./Result/";
 
     if (argc <= 1) {
@@ -17,6 +16,7 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
+    std::cout << argv[1] << std::endl;
     Image image(argv[1], OutputLocation);
 
     image.erode(5, 5);

@@ -34,7 +34,7 @@ cv::Mat Image::dilate(int dilation_dst, int dilation_size) {
     return output;
 }
 
-void Image::findObjects(uchar z_limit = 10) {
+void Image::findObjects(uchar z_limit) {
     std::cout << "using z_limit = " << (int)z_limit << std::endl;
     if (image.empty())
         return;
