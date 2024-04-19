@@ -37,31 +37,31 @@ int main(int argc, char **argv) {
     int height = image.image.rows;
     cv::Size size = image.image.size();
 
-    VideoWriter video(OutputLocation + "color_gradient.avi",
-                      VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, size);
+    // VideoWriter video(OutputLocation + "color_gradient.avi",
+    //                   VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, size);
 
-    if (!video.isOpened()) {
-        return -1;
-    }
+    // if (!video.isOpened()) {
+    //     return -1;
+    // }
 
-    vector<cv::Mat> masks = image.mask_mats;
-    Templates templates(image.image);
-    for (int i = 0; i < 10 * 60; i++) { // 10 seconds at 60 fps
+    // vector<cv::Mat> masks = image.mask_mats;
+    // Templates templates(image.image);
+    // for (int i = 0; i < 10 * 60; i++) { // 10 seconds at 60 fps
 
-        vector<cv::Mat> results;
-        results.push_back(templates.chessBoard(i, masks.at(1), 2, 1));
-        results.push_back(templates.chessBoard(i, masks.at(2), 1, 3));
-        results.push_back(templates.gradient(i, masks.at(3), 1));
-        results.push_back(templates.gradient(i, masks.at(4), 5));
+    //     vector<cv::Mat> results;
+    //     results.push_back(templates.chessBoard(i, masks.at(1), 2, 1));
+    //     results.push_back(templates.chessBoard(i, masks.at(2), 1, 3));
+    //     results.push_back(templates.gradient(i, masks.at(3), 1));
+    //     results.push_back(templates.gradient(i, masks.at(4), 5));
 
-        cv::add(results.at(0), results.at(1), results.at(1));
-        cv::add(results.at(1), results.at(2), results.at(2));
-        cv::add(results.at(2), results.at(3), results.at(3));
+    //     cv::add(results.at(0), results.at(1), results.at(1));
+    //     cv::add(results.at(1), results.at(2), results.at(2));
+    //     cv::add(results.at(2), results.at(3), results.at(3));
 
-        video.write(results.at(3));
-    }
+    //     video.write(results.at(3));
+    // }
 
-    video.release();
+    // video.release();
 
     return EXIT_SUCCESS;
 }

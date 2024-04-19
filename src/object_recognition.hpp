@@ -31,10 +31,10 @@ class Image {
 
     bool walk(cv::Mat &image, cv::Mat &objects, cv::Mat &output, uchar z_limit,
               uchar prev_z, cv::Point current, std::vector<cv::Point> path,
-              uchar id);
+              uchar id, int &visited);
 
     cv::Mat paint(cv::Mat &image, cv::Mat &objects, int z_limit,
-                  cv::Point start, uchar id);
+                  cv::Point start, uchar id, int &visited);
 
     void printTimeTaken(std::chrono::microseconds time_taken,
                         std::string function_name);

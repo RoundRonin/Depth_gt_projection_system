@@ -65,11 +65,13 @@ void Image::findObjects(uchar z_limit, int minDots, int maxObjects) {
     auto start = chrono::high_resolution_clock::now();
     vector<chrono::microseconds> figure_durations;
 
+    int visited = 0;
     int a = 0;
     for (int i = 0; i < nRows; i++) {
         for (int j = 0; j < nCols; j++) {
             uchar val = image.at<uchar>(i, j);
 
+            visited++;
             if (val == 0)
                 continue;
             if (objects.at<uchar>(i, j) != 0)
@@ -80,7 +82,8 @@ void Image::findObjects(uchar z_limit, int minDots, int maxObjects) {
 
             id = colors.at(mask_mats.size());
             Point current(j, i); // x, y //!
-            Mat output = paint(image, objects, z_limit, current, id); //!
+            Mat output =
+                paint(image, objects, z_limit, current, id, visited); //!
             if (mask_mats.size() < maxObjects)
                 mask_mats.push_back(output);
             else
@@ -95,39 +98,26 @@ void Image::findObjects(uchar z_limit, int minDots, int maxObjects) {
         }
     }
 
+    std::cout << "visited: " << visited << std::endl;
+    std::cout << "total: " << image.rows * image.cols << std::endl;
+
     //! TIME
     auto stop = chrono::high_resolution_clock::now();
     auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
 
-    int version = 1;
-    int batch = 3;
+    // 10 gb
+    int version = 3;
+    int batch = 5;
     string log_name = "recurse_log";
-    // log_system_stats(duration, "overall", version, batch, log_name);
-    // int iter = 0;
-    // for (auto duration : figure_durations) {
-    //     log_system_stats(duration, "figure " + to_string(iter), version,
-    //     batch,
-    //                      log_name);
-    //     iter++;
-    // }
+    log_system_stats(duration, "overall", version, batch, log_name);
+    int iter = 0;
+    for (auto duration : figure_durations) {
+        log_system_stats(duration, "figure " + to_string(iter), version, batch,
+                         log_name);
+        iter++;
+    }
 
     for (int i = 0; i < mask_mats.size(); i++) {
-        // Mat masked;
-        // bitwise_and(mask_mats.at(i), mask_mats.at(i), masked, objects);
-
-        // // CLEAN UP!! //TODO remove
-        // int erosion_size = 3;
-
-        // int erosion_type = MORPH_ELLIPSE;
-        // Mat element = getStructuringElement(
-        //     erosion_type, Size(2 * erosion_size + 1, 2 * erosion_size + 1),
-        //     Point(erosion_size, erosion_size));
-
-        // Mat output;
-        // cv::erode(masked, output, element);
-        // cv::dilate(output, output, element);
-        // mask_mats.at(i) = output;
-
         imwrite(out_path + "mask " + to_string(i) + " .png", mask_mats.at(i));
     }
 
@@ -135,15 +125,17 @@ void Image::findObjects(uchar z_limit, int minDots, int maxObjects) {
 }
 
 bool Image::walk(Mat &image, Mat &objects, Mat &output, uchar z_limit,
-                 uchar prev_z, Point current, vector<Point> path, uchar id) {
+                 uchar prev_z, Point current, vector<Point> path, uchar id,
+                 int &visited) {
 
+    visited++;
     if (current.x > image.cols || current.y > image.rows)
         return false;
 
-    if (image.at<uchar>(current) == 0)
+    if (objects.at<uchar>(current) != 0)
         return false;
 
-    if (objects.at<uchar>(current) != 0)
+    if (image.at<uchar>(current) == 0)
         return false;
 
     if (abs(image.at<uchar>(current) - prev_z) > z_limit)
@@ -157,13 +149,9 @@ bool Image::walk(Mat &image, Mat &objects, Mat &output, uchar z_limit,
     // recurse
 
     for (int i = 0; i < 4; i++) {
-        int x = directions[i][0];
-        int y = directions[i][1];
-
-        Point next(current.x + x, current.y + y);
-        uchar current_z = image.at<uchar>(current);
-
-        walk(image, objects, output, z_limit, current_z, next, path, id);
+        walk(image, objects, output, z_limit, image.at<uchar>(current),
+             Point(current.x + directions[i][0], current.y + directions[i][1]),
+             path, id, visited);
     }
 
     if (path.size() == 0)
@@ -173,14 +161,15 @@ bool Image::walk(Mat &image, Mat &objects, Mat &output, uchar z_limit,
     return false;
 }
 
-Mat Image::paint(Mat &image, Mat &objects, int z_limit, Point start, uchar id) {
+Mat Image::paint(Mat &image, Mat &objects, int z_limit, Point start, uchar id,
+                 int &visited) {
     // Mat output = Mat::zeros(image.rows, image.cols, CV_8UC3);
     // Mat output = Mat(image.size(), image.type());
     Mat output = Mat(image.rows, image.cols, CV_8U, double(0));
     vector<Point> path;
     uchar start_z = image.at<uchar>(start);
 
-    walk(image, objects, output, z_limit, start_z, start, path, id);
+    walk(image, objects, output, z_limit, start_z, start, path, id, visited);
 
     return output;
 }
