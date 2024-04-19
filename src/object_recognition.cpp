@@ -106,8 +106,8 @@ void Image::findObjects(uchar z_limit, int minDots, int maxObjects) {
     auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
 
     // 10 gb
-    int version = 3;
-    int batch = 5;
+    int version = 4;
+    int batch = 6;
     string log_name = "recurse_log";
     log_system_stats(duration, "overall", version, batch, log_name);
     int iter = 0;
@@ -125,8 +125,7 @@ void Image::findObjects(uchar z_limit, int minDots, int maxObjects) {
 }
 
 bool Image::walk(Mat &image, Mat &objects, Mat &output, uchar z_limit,
-                 uchar prev_z, Point current, vector<Point> path, uchar id,
-                 int &visited) {
+                 uchar prev_z, Point current, uchar id, int &visited) {
 
     visited++;
     if (current.x > image.cols || current.y > image.rows)
@@ -144,19 +143,19 @@ bool Image::walk(Mat &image, Mat &objects, Mat &output, uchar z_limit,
     objects.at<uchar>(current) = id; // Painting the pixel
     output.at<uchar>(current) = id;  // Painting the pixel
 
-    path.push_back(current);
+    // path.push_back(current);
 
     // recurse
 
     for (int i = 0; i < 4; i++) {
         walk(image, objects, output, z_limit, image.at<uchar>(current),
              Point(current.x + directions[i][0], current.y + directions[i][1]),
-             path, id, visited);
+             id, visited);
     }
 
-    if (path.size() == 0)
-        return false;
-    path.pop_back();
+    // if (path.size() == 0)
+    //     return false;
+    // path.pop_back();
 
     return false;
 }
@@ -166,10 +165,9 @@ Mat Image::paint(Mat &image, Mat &objects, int z_limit, Point start, uchar id,
     // Mat output = Mat::zeros(image.rows, image.cols, CV_8UC3);
     // Mat output = Mat(image.size(), image.type());
     Mat output = Mat(image.rows, image.cols, CV_8U, double(0));
-    vector<Point> path;
     uchar start_z = image.at<uchar>(start);
 
-    walk(image, objects, output, z_limit, start_z, start, path, id, visited);
+    walk(image, objects, output, z_limit, start_z, start, id, visited);
 
     return output;
 }
