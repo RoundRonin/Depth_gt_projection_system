@@ -45,7 +45,10 @@ Mat Image::dilate(int dilation_dst, int dilation_size) {
 }
 
 void Image::findObjects(uchar z_limit, int minDots, int maxObjects) {
-    cout << "using z_limit = " << (int)z_limit << endl;
+    cerr << "[INFO] using z_limit = " << (int)z_limit << endl;
+    cerr << "[INFO] using minDots = " << minDots << endl;
+    cerr << "[INFO] using maxObjects = " << maxObjects << endl;
+
     if (image.empty())
         return;
 
@@ -55,6 +58,8 @@ void Image::findObjects(uchar z_limit, int minDots, int maxObjects) {
     uchar id = UCHAR_MAX;
 
     // vector<tuple<Mat, int>> masks;
+
+    array<int, 10> colors = {30, 50, 70, 90, 110, 130, 150, 180, 210, 240};
 
     //! TIME
     auto start = chrono::high_resolution_clock::now();
@@ -73,9 +78,14 @@ void Image::findObjects(uchar z_limit, int minDots, int maxObjects) {
             //! TIME
             auto recurse_start = chrono::high_resolution_clock::now();
 
-            Point current(j, i);                                      // x, y
+            id = colors.at(mask_mats.size());
+            Point current(j, i); // x, y //!
             Mat output = paint(image, objects, z_limit, current, id); //!
-            mask_mats.push_back(output);
+            if (mask_mats.size() < maxObjects)
+                mask_mats.push_back(output);
+            else
+                cerr << "[WARN] Object limit exceeded (" << maxObjects << ")"
+                     << endl;
 
             //! TIME
             auto recurse_stop = chrono::high_resolution_clock::now();
@@ -90,17 +100,18 @@ void Image::findObjects(uchar z_limit, int minDots, int maxObjects) {
     auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
 
     int version = 1;
-    int batch = 2;
+    int batch = 3;
     string log_name = "recurse_log";
-    log_system_stats(duration, "overall", version, batch, log_name);
-    int iter = 0;
-    for (auto duration : figure_durations) {
-        log_system_stats(duration, "figure " + to_string(iter), version, batch,
-                         log_name);
-        iter++;
-    }
+    // log_system_stats(duration, "overall", version, batch, log_name);
+    // int iter = 0;
+    // for (auto duration : figure_durations) {
+    //     log_system_stats(duration, "figure " + to_string(iter), version,
+    //     batch,
+    //                      log_name);
+    //     iter++;
+    // }
 
-    for (int i = 0; i < maxObjects; i++) {
+    for (int i = 0; i < mask_mats.size(); i++) {
         // Mat masked;
         // bitwise_and(mask_mats.at(i), mask_mats.at(i), masked, objects);
 
@@ -164,7 +175,8 @@ bool Image::walk(Mat &image, Mat &objects, Mat &output, uchar z_limit,
 
 Mat Image::paint(Mat &image, Mat &objects, int z_limit, Point start, uchar id) {
     // Mat output = Mat::zeros(image.rows, image.cols, CV_8UC3);
-    Mat output = Mat(image.size(), image.type());
+    // Mat output = Mat(image.size(), image.type());
+    Mat output = Mat(image.rows, image.cols, CV_8U, double(0));
     vector<Point> path;
     uchar start_z = image.at<uchar>(start);
 
