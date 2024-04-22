@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     image.dilate(3, 3);
 
     image.write(OutputLocation + "e_d_e_d_e_d_d.png");
-    image.findObjects(atoi(argv[2]), 1000, 10);
+    image.findObjectsIterative(atoi(argv[2]), atoi(argv[3]), atoi(argv[4]));
 
     int width = image.image.cols;
     int height = image.image.rows;

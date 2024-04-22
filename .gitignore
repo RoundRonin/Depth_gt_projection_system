@@ -6,7 +6,7 @@ images
 Result/**
 ImageProcessing_Debug
 ImageProcessing_Release
-callgrind*
+call**
 log*
 *.png
 *.avi
