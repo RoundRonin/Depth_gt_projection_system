@@ -1,9 +1,5 @@
 #include "object_recognition.hpp"
-#include <chrono>
-#include <ctime>
-#include <filesystem>
-#include <fstream>
-#include <iomanip>
+#include "utils.hpp"
 #include <iostream>
 
 using namespace std;
@@ -12,8 +8,11 @@ namespace fs = std::filesystem;
 
 Image::Image(string path, string output_location) {
     image = imread(path, IMREAD_GRAYSCALE);
+    CV_Assert(image.depth() == CV_8U);
+    if (image.empty())
+        return;
+
     m_objects = Mat(image.rows, image.cols, CV_8U, double(0));
-    // m_objects = Mat(image.size(), image.type());
     m_out_path = output_location; // TODO add checks
 }
 
@@ -65,8 +64,8 @@ void Image::findObjects(uchar zlimit, int minDots, int maxObjects) {
     array<int, 10> colors = {30, 50, 70, 90, 110, 130, 150, 180, 210, 240};
 
     //! TIME
-    auto start = chrono::high_resolution_clock::now();
-    vector<chrono::microseconds> figure_durations;
+    // auto start = chrono::high_resolution_clock::now();
+    // vector<chrono::microseconds> figure_durations;
 
     int visited = 0;
     int a = 0;
@@ -81,7 +80,7 @@ void Image::findObjects(uchar zlimit, int minDots, int maxObjects) {
                 continue;
 
             //! TIME
-            auto recurse_start = chrono::high_resolution_clock::now();
+            // auto recurse_start = chrono::high_resolution_clock::now();
 
             int amount = 0;
             // id = colors.at(mask_mats.size()); //!
@@ -100,10 +99,11 @@ void Image::findObjects(uchar zlimit, int minDots, int maxObjects) {
                      << endl;
 
             //! TIME
-            auto recurse_stop = chrono::high_resolution_clock::now();
-            auto recurse_duration = chrono::duration_cast<chrono::microseconds>(
-                recurse_stop - recurse_start);
-            figure_durations.push_back(recurse_duration);
+            // auto recurse_stop = chrono::high_resolution_clock::now();
+            // auto recurse_duration =
+            // chrono::duration_cast<chrono::microseconds>(
+            //     recurse_stop - recurse_start);
+            // figure_durations.push_back(recurse_duration);
         }
     }
 
@@ -111,15 +111,16 @@ void Image::findObjects(uchar zlimit, int minDots, int maxObjects) {
     std::cout << "total: " << image.rows * image.cols << std::endl;
 
     //! TIME
-    auto stop = chrono::high_resolution_clock::now();
-    auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+    // auto stop = chrono::high_resolution_clock::now();
+    // auto duration = chrono::duration_cast<chrono::microseconds>(stop -
+    // start);
 
-    // 10 gb
-    int version = 4;
-    int batch = 4;
-    string log_name = "recurse_log";
-    log_system_stats(duration, "overall", version, batch, log_name);
-    int iter = 0;
+    // // 10 gb
+    // int version = 4;
+    // int batch = 4;
+    // string log_name = "recurse_log";
+    // log_system_stats(duration, "overall", version, batch, log_name);
+    // int iter = 0;
     // for (auto duration : figure_durations) {
     //     log_system_stats(duration, "figure " + to_string(iter), version,
     //     batch,
@@ -175,15 +176,10 @@ Mat Image::paint(Point start, uchar &id, int &visited, int &amount) {
     return output;
 }
 
-void Image::findObjectsIterative(uchar zlimit, int minDots, int maxObjects) {
-    CV_Assert(image.depth() == CV_8U);
-    if (image.empty())
-        return;
+void Image::findObjectsIterative(uchar zlimit, uchar minDistance, int minDots,
+                                 int maxObjects) {
 
-    cerr << "[INFO] using zlimit = " << (int)zlimit << endl;
-    cerr << "[INFO] using minDots = " << minDots << endl;
-    cerr << "[INFO] using maxObjects = " << maxObjects << endl;
-
+    printFindInfo(zlimit, minDistance, minDots, maxObjects);
     m_zlimit = zlimit;
 
     // Image info
@@ -199,26 +195,25 @@ void Image::findObjectsIterative(uchar zlimit, int minDots, int maxObjects) {
 
     // Preinit
     Mat output = Mat(image.rows, image.cols, CV_8U, double(0));
-
     Point current = Point(0, 0);
     uchar val = 0;
 
-    auto start = chrono::high_resolution_clock::now();
-    vector<chrono::microseconds> figure_durations;
+    Logger log;
+    log.start();
 
     for (int i = 0; i < nRows; i++) {
         for (int j = 0; j < nCols; j++) {
+
             // Skip undesired points
             current = Point(j, i);
             val = image.at<uchar>(current);
             visited++;
-            if (val == 0) // TODO min distance
+            if (val <= minDistance)
                 continue;
             if (m_objects.at<uchar>(current) != 0)
                 continue;
 
-            //! TIME
-            auto seek_start = chrono::high_resolution_clock::now();
+            log.start();
 
             amount = 0;
             imageLeft = size - i * nCols + j;
@@ -227,42 +222,29 @@ void Image::findObjectsIterative(uchar zlimit, int minDots, int maxObjects) {
             if (amount < minDots) {
                 cerr << "[WARN] Area too smol (" << amount << "/" << minDots
                      << ")" << endl;
+                log.drop();
                 continue;
             }
 
             if (mask_mats.size() < maxObjects)
                 mask_mats.push_back(output);
-            else
+            else {
                 cerr << "[WARN] Object limit exceeded (" << maxObjects << ")"
                      << endl;
+                log.drop();
+                continue;
+            }
 
-            //! TIME
-            auto seek_stop = chrono::high_resolution_clock::now();
-            auto seek_duration = chrono::duration_cast<chrono::microseconds>(
-                seek_stop - seek_start);
-            figure_durations.push_back(seek_duration);
+            log.stop("seek");
         }
     }
 
     std::cout << "visited: " << visited << std::endl;
     std::cout << "total: " << image.rows * image.cols << std::endl;
 
-    //! TIME
-    auto stop = chrono::high_resolution_clock::now();
-    auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
-
-    // 10 gb
-    int version = 4;
-    int batch = 4;
-    string log_name = "iter_log";
-    log_system_stats(duration, "overall", version, batch, log_name);
-    int iter = 0;
-    // for (auto duration : figure_durations) {
-    //     log_system_stats(duration, "figure " + to_string(iter), version,
-    //     batch,
-    //                      log_name);
-    //     iter++;
-    // }
+    log.stop("overall");
+    log.print();
+    log.log();
 
     for (int i = 0; i < mask_mats.size(); i++) {
         imwrite(m_out_path + "mask " + to_string(i) + " .png", mask_mats.at(i));
@@ -273,6 +255,7 @@ void Image::findObjectsIterative(uchar zlimit, int minDots, int maxObjects) {
 
 void Image::iterate(Point start, Mat &output, int imageLeft, uchar &id,
                     int &visited, int &amount) {
+
     output = Mat(image.rows, image.cols, CV_8U, double(0));
     m_objects.at<uchar>(start) = id;
     output.at<uchar>(start) = id;
@@ -337,59 +320,12 @@ void Image::iterate(Point start, Mat &output, int imageLeft, uchar &id,
     }
 }
 
-enum time { second = 1, ms = 1000, mcs = 1000000 };
+void Image::printFindInfo(uchar zlimit, uchar minDistance, int minDots,
+                          int maxObjects) {
 
-void Image::printTimeTaken(chrono::microseconds time_taken,
-                           string function_name) {
-    cout << "Time taken by " + function_name + " is: " << fixed
-         << chrono::duration<double, ratio<1, time::second>>(time_taken).count()
-         << setprecision(5);
-    cout << " sec " << endl;
-}
-
-void Image::log_system_stats(chrono::microseconds time_taken,
-                             string function_name, int version, int batch,
-                             string log_name) {
-    time_t now = chrono::system_clock::to_time_t(chrono::system_clock::now());
-
-    string log_line =
-        "{\"version\": " + to_string(version) +
-        ", \"batch\": " + to_string(batch) + ", \"now\": " + to_string(now) +
-        ", \"taken\": " +
-        to_string(chrono::duration<double, ratio<1, time::second>>(time_taken)
-                      .count()) +
-        ", \"function\": \"" + function_name + "\"}";
-    log_line.push_back(']');
-
-    string file_path = "logs/" + log_name + ".json";
-    if (!fs::exists(file_path)) {
-        ofstream file(file_path);
-        file << "[";
-    }
-
-    fstream file(file_path, ios::in | ios::out | ios::ate);
-    if (!file.is_open()) {
-        cerr << "Failed to open log file" << endl;
-        return;
-    }
-
-    streampos file_len = file.tellg();
-
-    if (file_len > 1) {
-        file.seekp(file_len - 2);
-        char last_byte;
-        file >> last_byte;
-
-        if (last_byte == ']') {
-            file.seekp(file_len - 2);
-            file << ",";
-        } else {
-            file.seekp(file_len - 1);
-            file << ",";
-        }
-        file << endl;
-    }
-
-    // Write the log line
-    file << log_line << endl;
+    cerr << "[INFO] using z limit = " << (int)zlimit << endl;
+    cerr << "[INFO] using minimal distance (lower == further) = "
+         << (int)minDistance << endl;
+    cerr << "[INFO] using minimum dots in one object = " << minDots << endl;
+    cerr << "[INFO] using maximum objects = " << maxObjects << endl;
 }

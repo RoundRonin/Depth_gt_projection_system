@@ -26,8 +26,8 @@ class Image {
 
     void findObjects(uchar zlimit = 10, int minDots = 1000, int maxObjects = 5);
 
-    void findObjectsIterative(uchar zlimit = 10, int minDots = 1000,
-                              int maxObjects = 5);
+    void findObjectsIterative(uchar zlimit = 10, uchar minDistance = 0,
+                              int minDots = 1000, int maxObjects = 5);
 
   private:
     int directions[4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
@@ -64,12 +64,8 @@ class Image {
     void iterate(cv::Point start, cv::Mat &output, int imageLeft, uchar &id,
                  int &visited, int &amount);
 
-    void printTimeTaken(std::chrono::microseconds time_taken,
-                        std::string function_name);
-
-    void log_system_stats(std::chrono::microseconds time_taken,
-                          std::string function_name, int version, int batch,
-                          std::string log_name);
+    void printFindInfo(uchar zlimit, uchar minDistance, int minDots,
+                       int maxObjects);
 };
 
 #endif
