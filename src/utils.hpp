@@ -7,12 +7,12 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <queue>
+#include <stack>
 #include <string>
 #include <vector>
 
 class Logger {
-    std::queue<std::chrono::time_point<std::chrono::high_resolution_clock>>
+    std::stack<std::chrono::time_point<std::chrono::high_resolution_clock>>
         m_timer_queue;
     std::vector<std::pair<std::string, std::chrono::microseconds>>
         m_duration_vector;
@@ -21,11 +21,40 @@ class Logger {
     int m_version;
     int m_batch;
 
+    struct LineWrapper {
+        bool IsNamed = false;
+        std::vector<std::string> line = {"[ERROR]", "__UNDEFINED__"};
+    };
+
+    std::vector<LineWrapper> m_error_messages = {
+        {LineWrapper()},
+        {true, {"[INFO] ", " = ", ""}},
+        {true, {"[INFO] using ", " = ", ""}},
+        {false, {"[WARN] Area too smol (", "/", ")"}},
+        {false, {"[WARN] Object limit exceeded (", ")"}}};
+
+  public:
+    enum ERROR {
+        UNDEFINED,
+        INFO,
+        INFO_USING,
+        WARN_SMOL_AREA,
+        WARN_OBJECT_LIMIT
+    };
+    enum time { second = 1, ms = 1000, mcs = 1000000 };
+
+  private:
+    struct message {
+        ERROR type = ERROR::UNDEFINED;
+        std::vector<int> values = {-1, -1}; // TODO error value
+        std::string name = "";
+    };
+
+    std::pair<int, message> m_last_message_counted = {0, message()};
+
   public:
     Logger(std::string log_name = "log", int version = 0, int batch = 0)
         : m_log_name(log_name), m_version(version), m_batch(batch) {}
-
-    enum time { second = 1, ms = 1000, mcs = 1000000 };
 
     void start() {
         auto start = std::chrono::high_resolution_clock::now();
@@ -35,7 +64,7 @@ class Logger {
     void stop(std::string timer_name = "default timer") {
         auto stop = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-            stop - m_timer_queue.front());
+            stop - m_timer_queue.top());
 
         m_timer_queue.pop();
         m_duration_vector.push_back({timer_name, duration});
@@ -79,6 +108,25 @@ class Logger {
         save_to_file(log_lines);
     }
 
+    void log_message(message msg) {
+        auto [type, values, name] = msg;
+
+        LineWrapper wrapped_log = m_error_messages.at(type);
+        bool isNamed = wrapped_log.IsNamed;
+        auto log_line = wrapped_log.line;
+        int shift = 0;
+        if (isNamed) {
+            shift = 1;
+            std::cerr << log_line.at(0) << name;
+        } else
+            std::cerr << log_line.at(0) << values.at(0);
+
+        for (int i = 1; i + 1 < log_line.size(); i++) {
+            std::cerr << log_line.at(i) << values.at(i - shift);
+        }
+        std::cerr << log_line.at(log_line.size() - 1) << std::endl;
+    }
+
   private:
     std::string get_formatted_local_time() {
         std::time_t now = std::chrono::system_clock::to_time_t(
@@ -107,15 +155,15 @@ class Logger {
         std::streampos file_len = file.tellg();
 
         if (file_len > 1) {
-            file.seekp(file_len - 2);
+            file.seekp((int)file_len - 2);
             char last_byte;
             file >> last_byte;
 
             if (last_byte == ']') {
-                file.seekp(file_len - 2);
+                file.seekp((int)file_len - 2);
                 file << ",";
             } else {
-                file.seekp(file_len - 1);
+                file.seekp((int)file_len - 1);
                 file << ",";
             }
             file << std::endl;

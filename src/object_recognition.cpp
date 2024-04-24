@@ -179,7 +179,14 @@ Mat Image::paint(Point start, uchar &id, int &visited, int &amount) {
 void Image::findObjectsIterative(uchar zlimit, uchar minDistance, int minDots,
                                  int maxObjects) {
 
-    printFindInfo(zlimit, minDistance, minDots, maxObjects);
+    Logger log;
+    // printFindInfo(zlimit, minDistance, minDots, maxObjects);
+    auto t = Logger::ERROR::INFO_USING;
+    log.log_message({t, {(int)zlimit}, "depth difference limit"});
+    log.log_message({t, {(int)minDistance}, "minimum distance"});
+    log.log_message({t, {minDots}, "minimum area"});
+    log.log_message({t, {maxObjects}, "maximum number of objects"});
+
     m_zlimit = zlimit;
 
     // Image info
@@ -198,7 +205,6 @@ void Image::findObjectsIterative(uchar zlimit, uchar minDistance, int minDots,
     Point current = Point(0, 0);
     uchar val = 0;
 
-    Logger log;
     log.start();
 
     for (int i = 0; i < nRows; i++) {
@@ -220,8 +226,8 @@ void Image::findObjectsIterative(uchar zlimit, uchar minDistance, int minDots,
             iterate(current, output, imageLeft, id, visited, amount);
 
             if (amount < minDots) {
-                cerr << "[WARN] Area too smol (" << amount << "/" << minDots
-                     << ")" << endl;
+                log.log_message(
+                    {Logger::ERROR::WARN_SMOL_AREA, {amount, minDots}});
                 log.drop();
                 continue;
             }
@@ -229,8 +235,8 @@ void Image::findObjectsIterative(uchar zlimit, uchar minDistance, int minDots,
             if (mask_mats.size() < maxObjects)
                 mask_mats.push_back(output);
             else {
-                cerr << "[WARN] Object limit exceeded (" << maxObjects << ")"
-                     << endl;
+                log.log_message(
+                    {Logger::ERROR::WARN_OBJECT_LIMIT, {maxObjects}});
                 log.drop();
                 continue;
             }
@@ -239,8 +245,8 @@ void Image::findObjectsIterative(uchar zlimit, uchar minDistance, int minDots,
         }
     }
 
-    std::cout << "visited: " << visited << std::endl;
-    std::cout << "total: " << image.rows * image.cols << std::endl;
+    log.log_message({Logger::ERROR::INFO, {visited}, "visited"});
+    log.log_message({Logger::ERROR::INFO, {image.rows * image.cols}, "total"});
 
     log.stop("overall");
     log.print();

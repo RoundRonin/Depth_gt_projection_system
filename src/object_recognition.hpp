@@ -53,6 +53,7 @@ class Image {
             } else if (current_direction == Dirs::UP) {
                 return toUP;
             }
+            return {cv::Point(-100, -100)}; // TODO return rerror
         }
     };
 
