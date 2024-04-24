@@ -1,9 +1,12 @@
 
 #include "object_recognition.cpp"
 #include "templategen.cpp"
+#include "utils.hpp"
 
 using namespace cv;
 using namespace std;
+
+// TODO check if an image exists in the location
 
 struct Settings {
     bool save_logs = false;
@@ -22,7 +25,7 @@ struct Settings {
 
 int main(int argc, char **argv) {
 
-    Settings settings{};
+    Settings sets{};
 
     if (argc <= 1) {
         cout << "Usage: \n";
@@ -34,7 +37,7 @@ int main(int argc, char **argv) {
     if (argv[1][0] == '-')
         return EXIT_FAILURE;
 
-    settings.FilePath = argv[1];
+    sets.FilePath = argv[1];
 
     for (int i = 2; i < argc; i++) {
         char *arg = argv[i];
@@ -53,15 +56,15 @@ int main(int argc, char **argv) {
         for (auto flag : flags) {
             switch (flag) {
             case 'l': { // turn on log saving
-                settings.save_logs = true;
+                sets.save_logs = true;
                 break;
             }
             case 't': { // turn on measuring time
-                settings.measure_time = true;
+                sets.measure_time = true;
                 break;
             }
             case 'r': { // use recursion instead of iterations
-                settings.recurse = true;
+                sets.recurse = true;
                 break;
             }
             case 'd': { // set Debug level
@@ -74,7 +77,7 @@ int main(int argc, char **argv) {
                 if (level > 2)
                     level = 2;
 
-                settings.debug_level = level;
+                sets.debug_level = level;
                 wasArgWithParams = true;
                 break;
             }
@@ -82,7 +85,7 @@ int main(int argc, char **argv) {
                 if (wasArgWithParams)
                     break;
 
-                settings.OutputLocation = argv[i + 1];
+                sets.OutputLocation = argv[i + 1];
                 wasArgWithParams = true;
                 break;
             }
@@ -92,7 +95,7 @@ int main(int argc, char **argv) {
 
                 char zlimit = atoi(argv[i + 1]);
                 // TODO checks;
-                settings.zlimit = zlimit;
+                sets.zlimit = zlimit;
                 wasArgWithParams = true;
                 break;
             }
@@ -102,7 +105,7 @@ int main(int argc, char **argv) {
 
                 char minDistance = atoi(argv[i + 1]);
                 // TODO checks;
-                settings.minDistance = minDistance;
+                sets.minDistance = minDistance;
                 wasArgWithParams = true;
                 break;
             }
@@ -112,7 +115,7 @@ int main(int argc, char **argv) {
 
                 int minArea = atoi(argv[i + 1]);
                 // TODO checks;
-                settings.minArea = minArea;
+                sets.minArea = minArea;
                 wasArgWithParams = true;
                 break;
             }
@@ -122,7 +125,7 @@ int main(int argc, char **argv) {
 
                 int maxObjects = atoi(argv[i + 1]);
                 // TODO checks;
-                settings.maxObjects = maxObjects;
+                sets.maxObjects = maxObjects;
                 wasArgWithParams = true;
                 break;
             }
@@ -131,9 +134,10 @@ int main(int argc, char **argv) {
             }
         }
     }
-    // uchar zlimit = 10, uchar minDistance = 0,
-    //                      int minDots = 1000, int maxObjects = 5,
-    Image image(settings.FilePath, settings.OutputLocation);
+
+    Logger log("log", 0, 0, sets.save_logs, sets.measure_time,
+               sets.debug_level);
+    Image image(sets.FilePath, sets.OutputLocation, log);
 
     image.erode(5, 5);
     image.dilate(5, 5);
@@ -146,9 +150,9 @@ int main(int argc, char **argv) {
 
     image.dilate(3, 3);
 
-    image.write(settings.OutputLocation + "modified_image.png");
-    image.findObjects(settings.zlimit, settings.minDistance, settings.minArea,
-                      settings.maxObjects);
+    image.write(sets.OutputLocation + "modified_image.png");
+    image.findObjects(sets.zlimit, sets.minDistance, sets.minArea,
+                      sets.maxObjects, sets.recurse);
 
     int width = image.image.cols;
     int height = image.image.rows;

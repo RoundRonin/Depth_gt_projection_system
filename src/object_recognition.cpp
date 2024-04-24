@@ -1,12 +1,11 @@
 #include "object_recognition.hpp"
 #include "utils.hpp"
-#include <iostream>
 
 using namespace std;
 using namespace cv;
 namespace fs = std::filesystem;
 
-Image::Image(string path, string output_location) {
+Image::Image(string path, string output_location, const Logger &log) {
     image = imread(path, IMREAD_GRAYSCALE);
     CV_Assert(image.depth() == CV_8U);
     if (image.empty())
@@ -14,6 +13,8 @@ Image::Image(string path, string output_location) {
 
     m_objects = Mat(image.rows, image.cols, CV_8U, double(0));
     m_out_path = output_location; // TODO add checks
+
+    m_log = log;
 }
 
 void Image::write(string path) { imwrite(path, image); }
@@ -44,153 +45,19 @@ Mat Image::dilate(int dilation_dst, int dilation_size) {
     return output;
 }
 
-// void findObjects(uchar zlimit, int minDots, int maxObjects) {
-//     cerr << "[INFO] using zlimit = " << (int)zlimit << endl;
-//     cerr << "[INFO] using minDots = " << minDots << endl;
-//     cerr << "[INFO] using maxObjects = " << maxObjects << endl;
-
-//     m_zlimit = zlimit;
-
-//     if (image.empty())
-//         return;
-
-//     CV_Assert(image.depth() == CV_8U);
-//     int nRows = image.rows;
-//     int nCols = image.cols;
-//     uchar id = UCHAR_MAX;
-
-//     // vector<tuple<Mat, int>> masks;
-
-//     array<int, 10> colors = {30, 50, 70, 90, 110, 130, 150, 180, 210, 240};
-
-//     //! TIME
-//     // auto start = chrono::high_resolution_clock::now();
-//     // vector<chrono::microseconds> figure_durations;
-
-//     int visited = 0;
-//     int a = 0;
-//     for (int i = 0; i < nRows; i++) {
-//         for (int j = 0; j < nCols; j++) {
-//             uchar val = image.at<uchar>(i, j);
-
-//             visited++;
-//             if (val == 0) // TODO min distance
-//                 continue;
-//             if (m_objects.at<uchar>(i, j) != 0)
-//                 continue;
-
-//             //! TIME
-//             // auto recurse_start = chrono::high_resolution_clock::now();
-
-//             int amount = 0;
-//             // id = colors.at(mask_mats.size()); //!
-//             Point current(j, i); // x, y
-//             Mat output = paint(current, id, visited, amount);
-//             if (amount < minDots) {
-//                 cerr << "[WARN] Area too smol (" << amount << "/" << minDots
-//                      << ")" << endl;
-//                 continue;
-//             }
-
-//             if (mask_mats.size() < maxObjects)
-//                 mask_mats.push_back(output);
-//             else
-//                 cerr << "[WARN] Object limit exceeded (" << maxObjects << ")"
-//                      << endl;
-
-//             //! TIME
-//             // auto recurse_stop = chrono::high_resolution_clock::now();
-//             // auto recurse_duration =
-//             // chrono::duration_cast<chrono::microseconds>(
-//             //     recurse_stop - recurse_start);
-//             // figure_durations.push_back(recurse_duration);
-//         }
-//     }
-
-//     std::cout << "visited: " << visited << std::endl;
-//     std::cout << "total: " << image.rows * image.cols << std::endl;
-
-//     //! TIME
-//     // auto stop = chrono::high_resolution_clock::now();
-//     // auto duration = chrono::duration_cast<chrono::microseconds>(stop -
-//     // start);
-
-//     // // 10 gb
-//     // int version = 4;
-//     // int batch = 4;
-//     // string log_name = "recurse_log";
-//     // log_system_stats(duration, "overall", version, batch, log_name);
-//     // int iter = 0;
-//     // for (auto duration : figure_durations) {
-//     //     log_system_stats(duration, "figure " + to_string(iter), version,
-//     //     batch,
-//     //                      log_name);
-//     //     iter++;
-//     // }
-
-//     for (int i = 0; i < mask_mats.size(); i++) {
-//         imwrite(m_out_path + "mask " + to_string(i) + " .png",
-//         mask_mats.at(i));
-//     }
-
-//     imwrite(m_out_path + "objects.png", m_objects);
-// }
-
-bool Image::walk(Mat &output, uchar prev_z, int x, int y, uchar &id,
-                 int &visited, int &amount) {
-
-    visited++;
-    if (x >= image.cols || y >= image.rows || x < 0 || y < 0)
-        return false;
-
-    Point current = Point(x, y);
-    if (m_objects.at<uchar>(current) != 0)
-        return false;
-
-    if (image.at<uchar>(current) == 0)
-        return false;
-
-    if (abs(image.at<uchar>(current) - prev_z) > m_zlimit)
-        return false;
-
-    m_objects.at<uchar>(current) = id; // Painting the pixel
-    output.at<uchar>(current) = id;    // Painting the pixel
-    amount++;
-
-    // recurse
-    for (int i = 0; i < 4; i++) {
-        walk(output, image.at<uchar>(current), current.x + directions[i][0],
-             current.y + directions[i][1], id, visited, amount);
-    }
-
-    return false;
-}
-
-Mat Image::paint(Point start, Mat &output, uchar &id, Stats stats) {
-    auto [visited, amount] = stats;
-    // Mat output = Mat::zeros(image.rows, image.cols, CV_8UC3);
-    // Mat output = Mat(image.size(), image.type());
-    uchar start_z = image.at<uchar>(start);
-
-    walk(output, start_z, start.x, start.y, id, visited, amount);
-
-    return output;
-}
-
 void Image::findObjects(uchar zlimit, uchar minDistance, int minDots,
                         int maxObjects, bool recurse) {
 
-    Logger log("log", 0, 0);
     // printFindInfo(zlimit, minDistance, minDots, maxObjects);
     auto i_use = Logger::ERROR::INFO_USING;
     auto i_info = Logger::ERROR::INFO;
     auto w_smol = Logger::ERROR::WARN_SMOL_AREA;
     auto w_limit = Logger::ERROR::WARN_OBJECT_LIMIT;
 
-    log.log_message({i_use, {(int)zlimit}, "depth difference limit"});
-    log.log_message({i_use, {(int)minDistance}, "minimum distance"});
-    log.log_message({i_use, {minDots}, "minimum area"});
-    log.log_message({i_use, {maxObjects}, "maximum number of objects"});
+    m_log.log_message({i_use, {(int)zlimit}, "depth difference limit"});
+    m_log.log_message({i_use, {(int)minDistance}, "minimum distance"});
+    m_log.log_message({i_use, {minDots}, "minimum area"});
+    m_log.log_message({i_use, {maxObjects}, "maximum number of objects"});
 
     m_zlimit = zlimit;
 
@@ -203,6 +70,7 @@ void Image::findObjects(uchar zlimit, uchar minDistance, int minDots,
     int imageLeft = size;
     int visited = 0;
     int amount = 0;
+    int x, y = 0;
     Stats stats = {visited, amount};
     uchar id = UCHAR_MAX;
 
@@ -211,52 +79,51 @@ void Image::findObjects(uchar zlimit, uchar minDistance, int minDots,
     Point current = Point(0, 0);
     uchar val = 0;
 
-    log.start();
+    m_log.start();
 
-    for (int i = 0; i < nRows; i++) {
-        for (int j = 0; j < nCols; j++) {
+    for (int i = 0; i < nRows * nCols; i++) {
+        x = i % nCols;
+        y = i / nCols;
+        // Skip undesired points
+        current = Point(x, y);
+        val = image.at<uchar>(current);
+        visited++;
+        if (val <= minDistance)
+            continue;
+        if (m_objects.at<uchar>(current) != 0)
+            continue;
 
-            // Skip undesired points
-            current = Point(j, i);
-            val = image.at<uchar>(current);
-            visited++;
-            if (val <= minDistance)
-                continue;
-            if (m_objects.at<uchar>(current) != 0)
-                continue;
+        m_log.start();
+        amount = 0;
+        imageLeft = size - y * nCols + x;
+        if (recurse)
+            paint(current, output, id, stats);
+        else
+            iterate(current, output, imageLeft, id, stats);
 
-            log.start();
-            amount = 0;
-            imageLeft = size - i * nCols + j;
-            if (recurse)
-                paint(current, output, id, stats);
-            else
-                iterate(current, output, imageLeft, id, stats);
-
-            if (amount < minDots) {
-                log.log_message({w_smol, {amount, minDots}});
-                log.drop();
-                continue;
-            }
-
-            if (mask_mats.size() < maxObjects)
-                mask_mats.push_back(output);
-            else {
-                log.log_message({w_limit, {maxObjects}});
-                log.drop();
-                continue;
-            }
-
-            log.stop("seek");
+        if (amount < minDots) {
+            m_log.log_message({w_smol, {amount, minDots}});
+            m_log.drop();
+            continue;
         }
+
+        if (mask_mats.size() < maxObjects)
+            mask_mats.push_back(output);
+        else {
+            m_log.log_message({w_limit, {maxObjects}});
+            m_log.drop();
+            continue;
+        }
+
+        m_log.stop("seek");
     }
 
-    log.log_message({i_info, {visited}, "visited"});
-    log.log_message({i_info, {image.rows * image.cols}, "total"});
+    m_log.log_message({i_info, {visited}, "visited"});
+    m_log.log_message({i_info, {image.rows * image.cols}, "total"});
 
-    log.stop("overall");
-    log.print();
-    log.log();
+    m_log.stop("overall");
+    m_log.print();
+    m_log.log();
 
     for (int i = 0; i < mask_mats.size(); i++) {
         imwrite(m_out_path + "mask " + to_string(i) + " .png", mask_mats.at(i));
@@ -331,4 +198,43 @@ void Image::iterate(Point start, Mat &output, int imageLeft, uchar &id,
             output.at<uchar>(current_point) = id;
         }
     }
+}
+
+void Image::paint(Point start, Mat &output, uchar &id, Stats stats) {
+    auto [visited, amount] = stats;
+
+    output = Mat(image.rows, image.cols, CV_8U, double(0));
+    uchar start_z = image.at<uchar>(start);
+
+    walk(output, start_z, start.x, start.y, id, visited, amount);
+}
+
+bool Image::walk(Mat &output, uchar prev_z, int x, int y, uchar &id,
+                 int &visited, int &amount) {
+
+    visited++;
+    if (x >= image.cols || y >= image.rows || x < 0 || y < 0)
+        return false;
+
+    Point current = Point(x, y);
+    if (m_objects.at<uchar>(current) != 0)
+        return false;
+
+    if (image.at<uchar>(current) == 0)
+        return false;
+
+    if (abs(image.at<uchar>(current) - prev_z) > m_zlimit)
+        return false;
+
+    m_objects.at<uchar>(current) = id; // Painting the pixel
+    output.at<uchar>(current) = id;    // Painting the pixel
+    amount++;
+
+    // recurse
+    for (int i = 0; i < 4; i++) {
+        walk(output, image.at<uchar>(current), current.x + directions[i][0],
+             current.y + directions[i][1], id, visited, amount);
+    }
+
+    return false;
 }

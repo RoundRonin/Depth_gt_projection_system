@@ -6,10 +6,13 @@
 #include "opencv2/opencv.hpp"
 #include <vector>
 
+#include "utils.hpp"
+
 class Image {
     cv::Mat m_objects;
     std::string m_out_path;
     uchar m_zlimit;
+    Logger m_log;
 
   public:
     cv::Mat image;
@@ -21,7 +24,7 @@ class Image {
     };
 
   public:
-    Image(std::string path, std::string output_location);
+    Image(std::string path, std::string output_location, const Logger &log);
 
     void write(std::string path);
 
@@ -64,7 +67,7 @@ class Image {
     bool walk(cv::Mat &output, uchar prev_z, int x, int y, uchar &id,
               int &visited, int &amount);
 
-    cv::Mat paint(cv::Point start, cv::Mat &output, uchar &id, Stats stats);
+    void paint(cv::Point start, cv::Mat &output, uchar &id, Stats stats);
 
     void iterate(cv::Point start, cv::Mat &output, int imageLeft, uchar &id,
                  Stats stats);
