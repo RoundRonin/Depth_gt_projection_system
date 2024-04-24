@@ -81,7 +81,7 @@ class Logger {
                 precision; // TODO rounding
 
             std::cerr << "[INFO] " << duration_entry.first << " = " << time
-                      << std::endl;
+                      << std::endl; // TODO rework to use log_message
         }
     }
 

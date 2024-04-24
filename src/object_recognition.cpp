@@ -44,96 +44,97 @@ Mat Image::dilate(int dilation_dst, int dilation_size) {
     return output;
 }
 
-void Image::findObjects(uchar zlimit, int minDots, int maxObjects) {
-    cerr << "[INFO] using zlimit = " << (int)zlimit << endl;
-    cerr << "[INFO] using minDots = " << minDots << endl;
-    cerr << "[INFO] using maxObjects = " << maxObjects << endl;
+// void findObjects(uchar zlimit, int minDots, int maxObjects) {
+//     cerr << "[INFO] using zlimit = " << (int)zlimit << endl;
+//     cerr << "[INFO] using minDots = " << minDots << endl;
+//     cerr << "[INFO] using maxObjects = " << maxObjects << endl;
 
-    m_zlimit = zlimit;
+//     m_zlimit = zlimit;
 
-    if (image.empty())
-        return;
+//     if (image.empty())
+//         return;
 
-    CV_Assert(image.depth() == CV_8U);
-    int nRows = image.rows;
-    int nCols = image.cols;
-    uchar id = UCHAR_MAX;
+//     CV_Assert(image.depth() == CV_8U);
+//     int nRows = image.rows;
+//     int nCols = image.cols;
+//     uchar id = UCHAR_MAX;
 
-    // vector<tuple<Mat, int>> masks;
+//     // vector<tuple<Mat, int>> masks;
 
-    array<int, 10> colors = {30, 50, 70, 90, 110, 130, 150, 180, 210, 240};
+//     array<int, 10> colors = {30, 50, 70, 90, 110, 130, 150, 180, 210, 240};
 
-    //! TIME
-    // auto start = chrono::high_resolution_clock::now();
-    // vector<chrono::microseconds> figure_durations;
+//     //! TIME
+//     // auto start = chrono::high_resolution_clock::now();
+//     // vector<chrono::microseconds> figure_durations;
 
-    int visited = 0;
-    int a = 0;
-    for (int i = 0; i < nRows; i++) {
-        for (int j = 0; j < nCols; j++) {
-            uchar val = image.at<uchar>(i, j);
+//     int visited = 0;
+//     int a = 0;
+//     for (int i = 0; i < nRows; i++) {
+//         for (int j = 0; j < nCols; j++) {
+//             uchar val = image.at<uchar>(i, j);
 
-            visited++;
-            if (val == 0) // TODO min distance
-                continue;
-            if (m_objects.at<uchar>(i, j) != 0)
-                continue;
+//             visited++;
+//             if (val == 0) // TODO min distance
+//                 continue;
+//             if (m_objects.at<uchar>(i, j) != 0)
+//                 continue;
 
-            //! TIME
-            // auto recurse_start = chrono::high_resolution_clock::now();
+//             //! TIME
+//             // auto recurse_start = chrono::high_resolution_clock::now();
 
-            int amount = 0;
-            // id = colors.at(mask_mats.size()); //!
-            Point current(j, i); // x, y
-            Mat output = paint(current, id, visited, amount);
-            if (amount < minDots) {
-                cerr << "[WARN] Area too smol (" << amount << "/" << minDots
-                     << ")" << endl;
-                continue;
-            }
+//             int amount = 0;
+//             // id = colors.at(mask_mats.size()); //!
+//             Point current(j, i); // x, y
+//             Mat output = paint(current, id, visited, amount);
+//             if (amount < minDots) {
+//                 cerr << "[WARN] Area too smol (" << amount << "/" << minDots
+//                      << ")" << endl;
+//                 continue;
+//             }
 
-            if (mask_mats.size() < maxObjects)
-                mask_mats.push_back(output);
-            else
-                cerr << "[WARN] Object limit exceeded (" << maxObjects << ")"
-                     << endl;
+//             if (mask_mats.size() < maxObjects)
+//                 mask_mats.push_back(output);
+//             else
+//                 cerr << "[WARN] Object limit exceeded (" << maxObjects << ")"
+//                      << endl;
 
-            //! TIME
-            // auto recurse_stop = chrono::high_resolution_clock::now();
-            // auto recurse_duration =
-            // chrono::duration_cast<chrono::microseconds>(
-            //     recurse_stop - recurse_start);
-            // figure_durations.push_back(recurse_duration);
-        }
-    }
+//             //! TIME
+//             // auto recurse_stop = chrono::high_resolution_clock::now();
+//             // auto recurse_duration =
+//             // chrono::duration_cast<chrono::microseconds>(
+//             //     recurse_stop - recurse_start);
+//             // figure_durations.push_back(recurse_duration);
+//         }
+//     }
 
-    std::cout << "visited: " << visited << std::endl;
-    std::cout << "total: " << image.rows * image.cols << std::endl;
+//     std::cout << "visited: " << visited << std::endl;
+//     std::cout << "total: " << image.rows * image.cols << std::endl;
 
-    //! TIME
-    // auto stop = chrono::high_resolution_clock::now();
-    // auto duration = chrono::duration_cast<chrono::microseconds>(stop -
-    // start);
+//     //! TIME
+//     // auto stop = chrono::high_resolution_clock::now();
+//     // auto duration = chrono::duration_cast<chrono::microseconds>(stop -
+//     // start);
 
-    // // 10 gb
-    // int version = 4;
-    // int batch = 4;
-    // string log_name = "recurse_log";
-    // log_system_stats(duration, "overall", version, batch, log_name);
-    // int iter = 0;
-    // for (auto duration : figure_durations) {
-    //     log_system_stats(duration, "figure " + to_string(iter), version,
-    //     batch,
-    //                      log_name);
-    //     iter++;
-    // }
+//     // // 10 gb
+//     // int version = 4;
+//     // int batch = 4;
+//     // string log_name = "recurse_log";
+//     // log_system_stats(duration, "overall", version, batch, log_name);
+//     // int iter = 0;
+//     // for (auto duration : figure_durations) {
+//     //     log_system_stats(duration, "figure " + to_string(iter), version,
+//     //     batch,
+//     //                      log_name);
+//     //     iter++;
+//     // }
 
-    for (int i = 0; i < mask_mats.size(); i++) {
-        imwrite(m_out_path + "mask " + to_string(i) + " .png", mask_mats.at(i));
-    }
+//     for (int i = 0; i < mask_mats.size(); i++) {
+//         imwrite(m_out_path + "mask " + to_string(i) + " .png",
+//         mask_mats.at(i));
+//     }
 
-    imwrite(m_out_path + "objects.png", m_objects);
-}
+//     imwrite(m_out_path + "objects.png", m_objects);
+// }
 
 bool Image::walk(Mat &output, uchar prev_z, int x, int y, uchar &id,
                  int &visited, int &amount) {
@@ -165,10 +166,10 @@ bool Image::walk(Mat &output, uchar prev_z, int x, int y, uchar &id,
     return false;
 }
 
-Mat Image::paint(Point start, uchar &id, int &visited, int &amount) {
+Mat Image::paint(Point start, Mat &output, uchar &id, Stats stats) {
+    auto [visited, amount] = stats;
     // Mat output = Mat::zeros(image.rows, image.cols, CV_8UC3);
     // Mat output = Mat(image.size(), image.type());
-    Mat output = Mat(image.rows, image.cols, CV_8U, double(0));
     uchar start_z = image.at<uchar>(start);
 
     walk(output, start_z, start.x, start.y, id, visited, amount);
@@ -176,16 +177,20 @@ Mat Image::paint(Point start, uchar &id, int &visited, int &amount) {
     return output;
 }
 
-void Image::findObjectsIterative(uchar zlimit, uchar minDistance, int minDots,
-                                 int maxObjects) {
+void Image::findObjects(uchar zlimit, uchar minDistance, int minDots,
+                        int maxObjects, bool recurse) {
 
-    Logger log;
+    Logger log("log", 0, 0);
     // printFindInfo(zlimit, minDistance, minDots, maxObjects);
-    auto t = Logger::ERROR::INFO_USING;
-    log.log_message({t, {(int)zlimit}, "depth difference limit"});
-    log.log_message({t, {(int)minDistance}, "minimum distance"});
-    log.log_message({t, {minDots}, "minimum area"});
-    log.log_message({t, {maxObjects}, "maximum number of objects"});
+    auto i_use = Logger::ERROR::INFO_USING;
+    auto i_info = Logger::ERROR::INFO;
+    auto w_smol = Logger::ERROR::WARN_SMOL_AREA;
+    auto w_limit = Logger::ERROR::WARN_OBJECT_LIMIT;
+
+    log.log_message({i_use, {(int)zlimit}, "depth difference limit"});
+    log.log_message({i_use, {(int)minDistance}, "minimum distance"});
+    log.log_message({i_use, {minDots}, "minimum area"});
+    log.log_message({i_use, {maxObjects}, "maximum number of objects"});
 
     m_zlimit = zlimit;
 
@@ -198,6 +203,7 @@ void Image::findObjectsIterative(uchar zlimit, uchar minDistance, int minDots,
     int imageLeft = size;
     int visited = 0;
     int amount = 0;
+    Stats stats = {visited, amount};
     uchar id = UCHAR_MAX;
 
     // Preinit
@@ -220,14 +226,15 @@ void Image::findObjectsIterative(uchar zlimit, uchar minDistance, int minDots,
                 continue;
 
             log.start();
-
             amount = 0;
             imageLeft = size - i * nCols + j;
-            iterate(current, output, imageLeft, id, visited, amount);
+            if (recurse)
+                paint(current, output, id, stats);
+            else
+                iterate(current, output, imageLeft, id, stats);
 
             if (amount < minDots) {
-                log.log_message(
-                    {Logger::ERROR::WARN_SMOL_AREA, {amount, minDots}});
+                log.log_message({w_smol, {amount, minDots}});
                 log.drop();
                 continue;
             }
@@ -235,8 +242,7 @@ void Image::findObjectsIterative(uchar zlimit, uchar minDistance, int minDots,
             if (mask_mats.size() < maxObjects)
                 mask_mats.push_back(output);
             else {
-                log.log_message(
-                    {Logger::ERROR::WARN_OBJECT_LIMIT, {maxObjects}});
+                log.log_message({w_limit, {maxObjects}});
                 log.drop();
                 continue;
             }
@@ -245,8 +251,8 @@ void Image::findObjectsIterative(uchar zlimit, uchar minDistance, int minDots,
         }
     }
 
-    log.log_message({Logger::ERROR::INFO, {visited}, "visited"});
-    log.log_message({Logger::ERROR::INFO, {image.rows * image.cols}, "total"});
+    log.log_message({i_info, {visited}, "visited"});
+    log.log_message({i_info, {image.rows * image.cols}, "total"});
 
     log.stop("overall");
     log.print();
@@ -260,7 +266,8 @@ void Image::findObjectsIterative(uchar zlimit, uchar minDistance, int minDots,
 }
 
 void Image::iterate(Point start, Mat &output, int imageLeft, uchar &id,
-                    int &visited, int &amount) {
+                    Stats stats) {
+    auto [visited, amount] = stats;
 
     output = Mat(image.rows, image.cols, CV_8U, double(0));
     m_objects.at<uchar>(start) = id;
@@ -324,14 +331,4 @@ void Image::iterate(Point start, Mat &output, int imageLeft, uchar &id,
             output.at<uchar>(current_point) = id;
         }
     }
-}
-
-void Image::printFindInfo(uchar zlimit, uchar minDistance, int minDots,
-                          int maxObjects) {
-
-    cerr << "[INFO] using z limit = " << (int)zlimit << endl;
-    cerr << "[INFO] using minimal distance (lower == further) = "
-         << (int)minDistance << endl;
-    cerr << "[INFO] using minimum dots in one object = " << minDots << endl;
-    cerr << "[INFO] using maximum objects = " << maxObjects << endl;
 }

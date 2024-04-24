@@ -15,6 +15,11 @@ class Image {
     cv::Mat image;
     std::vector<cv::Mat> mask_mats;
 
+    struct Stats {
+        int &isited;
+        int &amount;
+    };
+
   public:
     Image(std::string path, std::string output_location);
 
@@ -24,10 +29,9 @@ class Image {
 
     cv::Mat dilate(int dilation_dst, int dilation_size);
 
-    void findObjects(uchar zlimit = 10, int minDots = 1000, int maxObjects = 5);
-
-    void findObjectsIterative(uchar zlimit = 10, uchar minDistance = 0,
-                              int minDots = 1000, int maxObjects = 5);
+    void findObjects(uchar zlimit = 10, uchar minDistance = 0,
+                     int minDots = 1000, int maxObjects = 5,
+                     bool recurse = false);
 
   private:
     int directions[4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
@@ -60,13 +64,10 @@ class Image {
     bool walk(cv::Mat &output, uchar prev_z, int x, int y, uchar &id,
               int &visited, int &amount);
 
-    cv::Mat paint(cv::Point start, uchar &id, int &visited, int &amount);
+    cv::Mat paint(cv::Point start, cv::Mat &output, uchar &id, Stats stats);
 
     void iterate(cv::Point start, cv::Mat &output, int imageLeft, uchar &id,
-                 int &visited, int &amount);
-
-    void printFindInfo(uchar zlimit, uchar minDistance, int minDots,
-                       int maxObjects);
+                 Stats stats);
 };
 
 #endif
