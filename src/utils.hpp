@@ -48,6 +48,8 @@ class Logger {
         ERROR type = ERROR::UNDEFINED;
         std::vector<int> values = {-1, -1}; // TODO error value
         std::string name = "";
+
+        auto operator<=>(const message &) const = default;
     };
 
     std::pair<int, message> m_last_message_counted = {0, message()};
@@ -78,7 +80,7 @@ class Logger {
                 std::chrono::duration<double>(duration_entry.second).count() /
                 precision; // TODO rounding
 
-            std::cerr << "[INFO]: " << duration_entry.first << " = " << time
+            std::cerr << "[INFO] " << duration_entry.first << " = " << time
                       << std::endl;
         }
     }
@@ -111,20 +113,38 @@ class Logger {
     void log_message(message msg) {
         auto [type, values, name] = msg;
 
+        bool repeated = false;
+        std::string line_end = "";
+        std::string line_start = "\n";
+        auto [counter, last_msg] = m_last_message_counted;
+        if (msg == last_msg) {
+            // std::cerr << "GELLP" << std::endl;
+            repeated = true;
+            m_last_message_counted.first++;
+            line_start = "\r";
+            line_end = " (" + std::to_string(counter + 1) + ")";
+        } else {
+            m_last_message_counted.second = msg;
+            m_last_message_counted.first = 0;
+        }
+
         LineWrapper wrapped_log = m_error_messages.at(type);
         bool isNamed = wrapped_log.IsNamed;
         auto log_line = wrapped_log.line;
         int shift = 0;
+        std::string print_line = "";
         if (isNamed) {
             shift = 1;
-            std::cerr << log_line.at(0) << name;
+            print_line += log_line.at(0) + name;
         } else
-            std::cerr << log_line.at(0) << values.at(0);
+            print_line += log_line.at(0) + std::to_string(values.at(0));
 
         for (int i = 1; i + 1 < log_line.size(); i++) {
-            std::cerr << log_line.at(i) << values.at(i - shift);
+            print_line += log_line.at(i) + std::to_string(values.at(i - shift));
         }
-        std::cerr << log_line.at(log_line.size() - 1) << std::endl;
+        print_line += log_line.at(log_line.size() - 1);
+
+        std::cerr << line_start << print_line << line_end;
     }
 
   private:
