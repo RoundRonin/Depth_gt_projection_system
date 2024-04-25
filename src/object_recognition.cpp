@@ -84,6 +84,7 @@ void Image::findObjects(uchar zlimit, uchar minDistance, int minDots,
     for (int i = 0; i < nRows * nCols; i++) {
         x = i % nCols;
         y = i / nCols;
+
         // Skip undesired points
         current = Point(x, y);
         val = image.at<uchar>(current);
@@ -95,7 +96,7 @@ void Image::findObjects(uchar zlimit, uchar minDistance, int minDots,
 
         m_log.start();
         amount = 0;
-        imageLeft = size - y * nCols + x;
+        imageLeft = size - y * nCols + x; // TODO
         if (recurse)
             paint(current, output, id, stats);
         else
@@ -139,63 +140,46 @@ void Image::iterate(Point start, Mat &output, int imageLeft, uchar &id,
     output = Mat(image.rows, image.cols, CV_8U, double(0));
     m_objects.at<uchar>(start) = id;
     output.at<uchar>(start) = id;
+    Dirs dirs;
 
     uchar previous_z = 0;
-
-    Point current_point = start;
     Point point_to_check = start;
+    PointDirs pd{point_to_check, dirs.toRIGHT};
+    m_objects.at<uchar>(point_to_check) = id;
+    output.at<uchar>(point_to_check) = id;
 
-    Dirs dirs;
-    vector<Point> current_direction = dirs.toRIGHT;
-    vector<Point> check_list{current_point};
-    // vector<Point> next_direction = current_direction;
+    vector<PointDirs> list{pd};
 
-    for (int check = 0; check < check_list.size() && check < imageLeft * 4;
-         check++) {
-        current_point =
-            check_list.at(check_list.size() - 1); // TODO is this optimal?
-        check_list.pop_back();
+    int iter = 0;
+    while (list.size() != 0 && iter < imageLeft * 4) {
+        iter++;
+        // Get point from the back of the list //? start?
+        pd = list.back();
+        list.pop_back();
 
-        for (int iter = 0; iter < imageLeft; iter++) {
-            previous_z = image.at<uchar>(current_point);
-            // for (Point direction : current_direction) {
-            //     check_list.push_back(point_to_check + direction);
-            // }
-            for (int r = 3; r > 0; r--) {
-                check_list.push_back(point_to_check +
-                                     current_direction.at(r - 1));
-            }
+        previous_z = image.at<uchar>(pd.coordinates);
+        for (auto dir : pd.directions) {
+            point_to_check = pd.coordinates;
+            point_to_check += dir;
 
-            for (Point direction : current_direction) {
-                check_list.pop_back();
-                point_to_check = current_point;
-                point_to_check += direction;
+            visited++;
+            // ALL THE CHECKS
+            if (point_to_check.x >= image.cols ||
+                point_to_check.y >= image.rows || point_to_check.x < 0 ||
+                point_to_check.y < 0)
+                continue;
+            if (m_objects.at<uchar>(point_to_check) != 0)
+                continue;
+            if (image.at<uchar>(point_to_check) == 0)
+                continue;
+            if (abs(image.at<uchar>(point_to_check) - previous_z) > m_zlimit)
+                continue;
 
-                visited++;
-                // ALL THE CHECKS
-                if (point_to_check.x >= image.cols ||
-                    point_to_check.y >= image.rows || point_to_check.x < 0 ||
-                    point_to_check.y < 0)
-                    continue;
-                if (m_objects.at<uchar>(point_to_check) != 0)
-                    continue;
-                if (image.at<uchar>(point_to_check) == 0)
-                    continue;
-                if (abs(image.at<uchar>(point_to_check) - previous_z) >
-                    m_zlimit)
-                    continue;
+            amount++;
+            m_objects.at<uchar>(point_to_check) = id;
+            output.at<uchar>(point_to_check) = id;
 
-                amount++;
-                current_point = point_to_check;
-                current_direction = dirs.nextDirectionList(direction);
-                break;
-            }
-
-            if (current_point != point_to_check)
-                break;
-
-            m_objects.at<uchar>(current_point) = id;
-            output.at<uchar>(current_point) = id;
+            list.push_back({point_to_check, dirs.nextDirectionList(dir)});
         }
     }
 }

@@ -39,6 +39,11 @@ class Image {
   private:
     int directions[4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 
+    struct PointDirs {
+        cv::Point coordinates;
+        std::vector<cv::Point> directions;
+    };
+
     struct Dirs {
         cv::Point RIGHT{1, 0};
         cv::Point DOWN{0, 1};

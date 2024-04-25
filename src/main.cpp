@@ -7,6 +7,13 @@ using namespace cv;
 using namespace std;
 
 // TODO check if an image exists in the location
+// TODO frontend
+// TODO     show log statistics
+// TODO
+// TODO backend
+// TODO     save test image in a "database"
+// TODO
+// TODO
 
 struct Settings {
     bool save_logs = false;
