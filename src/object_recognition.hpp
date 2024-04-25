@@ -12,6 +12,8 @@ class Image {
     cv::Mat m_objects;
     std::string m_out_path;
     uchar m_zlimit;
+    uchar m_min_distance;
+    uchar m_medium_limit;
     Logger m_log;
 
   public:
@@ -33,8 +35,8 @@ class Image {
     cv::Mat dilate(int dilation_dst, int dilation_size);
 
     void findObjects(uchar zlimit = 10, uchar minDistance = 0,
-                     int minDots = 1000, int maxObjects = 5,
-                     bool recurse = false);
+                     uchar medium_limit = 10, int minDots = 1000,
+                     int maxObjects = 5, bool recurse = false);
 
   private:
     int directions[4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
@@ -69,8 +71,8 @@ class Image {
         }
     };
 
-    bool walk(cv::Mat &output, uchar prev_z, int x, int y, uchar &id,
-              int &visited, int &amount);
+    bool walk(cv::Mat &output, uchar prev_z, double &mediumVal, int x, int y,
+              uchar &id, int &visited, int &amount);
 
     void paint(cv::Point start, cv::Mat &output, uchar &id, Stats stats);
 

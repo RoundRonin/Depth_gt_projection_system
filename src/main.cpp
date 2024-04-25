@@ -23,6 +23,7 @@ struct Settings {
 
     uchar zlimit = 10;
     uchar minDistance = 0;
+    uchar medium_limit = 10;
     int minArea = 1000;
     int maxObjects = 10;
 
@@ -100,7 +101,7 @@ int main(int argc, char **argv) {
                 if (wasArgWithParams)
                     break;
 
-                char zlimit = atoi(argv[i + 1]);
+                uchar zlimit = atoi(argv[i + 1]);
                 // TODO checks;
                 sets.zlimit = zlimit;
                 wasArgWithParams = true;
@@ -110,9 +111,19 @@ int main(int argc, char **argv) {
                 if (wasArgWithParams)
                     break;
 
-                char minDistance = atoi(argv[i + 1]);
+                uchar minDistance = atoi(argv[i + 1]);
                 // TODO checks;
                 sets.minDistance = minDistance;
+                wasArgWithParams = true;
+                break;
+            }
+            case 'M': { // medium
+                if (wasArgWithParams)
+                    break;
+
+                uchar medium = atoi(argv[i + 1]);
+                // TODO checks;
+                sets.medium_limit = medium;
                 wasArgWithParams = true;
                 break;
             }
@@ -158,8 +169,8 @@ int main(int argc, char **argv) {
     image.dilate(3, 3);
 
     image.write(sets.OutputLocation + "modified_image.png");
-    image.findObjects(sets.zlimit, sets.minDistance, sets.minArea,
-                      sets.maxObjects, sets.recurse);
+    image.findObjects(sets.zlimit, sets.minDistance, sets.medium_limit,
+                      sets.minArea, sets.maxObjects, sets.recurse);
 
     int width = image.image.cols;
     int height = image.image.rows;

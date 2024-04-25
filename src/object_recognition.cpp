@@ -45,8 +45,8 @@ Mat Image::dilate(int dilation_dst, int dilation_size) {
     return output;
 }
 
-void Image::findObjects(uchar zlimit, uchar minDistance, int minDots,
-                        int maxObjects, bool recurse) {
+void Image::findObjects(uchar zlimit, uchar minDistance, uchar medium_limit,
+                        int minDots, int maxObjects, bool recurse) {
 
     // printFindInfo(zlimit, minDistance, minDots, maxObjects);
     auto i_use = Logger::ERROR::INFO_USING;
@@ -56,10 +56,13 @@ void Image::findObjects(uchar zlimit, uchar minDistance, int minDots,
 
     m_log.log_message({i_use, {(int)zlimit}, "depth difference limit"});
     m_log.log_message({i_use, {(int)minDistance}, "minimum distance"});
+    m_log.log_message({i_use, {(int)medium_limit}, "medium limit"});
     m_log.log_message({i_use, {minDots}, "minimum area"});
     m_log.log_message({i_use, {maxObjects}, "maximum number of objects"});
 
     m_zlimit = zlimit;
+    m_min_distance = minDistance;
+    m_medium_limit = medium_limit;
 
     // Image info
     int nRows = image.rows;
@@ -89,7 +92,7 @@ void Image::findObjects(uchar zlimit, uchar minDistance, int minDots,
         current = Point(x, y);
         val = image.at<uchar>(current);
         visited++;
-        if (val <= minDistance)
+        if (val <= m_min_distance)
             continue;
         if (m_objects.at<uchar>(current) != 0)
             continue;
@@ -150,29 +153,37 @@ void Image::iterate(Point start, Mat &output, int imageLeft, uchar &id,
 
     vector<PointDirs> list{pd};
 
+    double mediumVal = 0;
+
     int iter = 0;
     while (list.size() != 0 && iter < imageLeft * 4) {
         iter++;
-        // Get point from the back of the list //? start?
         pd = list.back();
         list.pop_back();
 
         previous_z = image.at<uchar>(pd.coordinates);
+        mediumVal = (mediumVal * amount + previous_z) / (amount + 1);
         for (auto dir : pd.directions) {
             point_to_check = pd.coordinates;
             point_to_check += dir;
 
             visited++;
-            // ALL THE CHECKS
+            // Basic checks
             if (point_to_check.x >= image.cols ||
                 point_to_check.y >= image.rows || point_to_check.x < 0 ||
                 point_to_check.y < 0)
                 continue;
             if (m_objects.at<uchar>(point_to_check) != 0)
                 continue;
-            if (image.at<uchar>(point_to_check) == 0)
+            if (image.at<uchar>(point_to_check) <= m_min_distance)
                 continue;
             if (abs(image.at<uchar>(point_to_check) - previous_z) > m_zlimit)
+                continue;
+
+            // Additional checks
+            // medium check
+            if (abs(image.at<uchar>(point_to_check) - mediumVal) >
+                m_medium_limit)
                 continue;
 
             amount++;
@@ -189,35 +200,40 @@ void Image::paint(Point start, Mat &output, uchar &id, Stats stats) {
 
     output = Mat(image.rows, image.cols, CV_8U, double(0));
     uchar start_z = image.at<uchar>(start);
+    double mediumVal = start_z;
 
-    walk(output, start_z, start.x, start.y, id, visited, amount);
+    walk(output, start_z, mediumVal, start.x, start.y, id, visited, amount);
 }
 
-bool Image::walk(Mat &output, uchar prev_z, int x, int y, uchar &id,
-                 int &visited, int &amount) {
+bool Image::walk(Mat &output, uchar prev_z, double &mediumVal, int x, int y,
+                 uchar &id, int &visited, int &amount) {
 
     visited++;
+    // Basic checks
     if (x >= image.cols || y >= image.rows || x < 0 || y < 0)
         return false;
-
     Point current = Point(x, y);
     if (m_objects.at<uchar>(current) != 0)
         return false;
-
-    if (image.at<uchar>(current) == 0)
+    if (image.at<uchar>(current) <= m_min_distance)
+        return false;
+    if (abs(image.at<uchar>(current) - prev_z) > m_zlimit)
         return false;
 
-    if (abs(image.at<uchar>(current) - prev_z) > m_zlimit)
+    // Additional checks
+    // medium check
+    if (abs(image.at<uchar>(current) - mediumVal) > m_medium_limit)
         return false;
 
     m_objects.at<uchar>(current) = id; // Painting the pixel
     output.at<uchar>(current) = id;    // Painting the pixel
     amount++;
-
+    mediumVal = (mediumVal * amount + prev_z) / (amount + 1);
     // recurse
     for (int i = 0; i < 4; i++) {
-        walk(output, image.at<uchar>(current), current.x + directions[i][0],
-             current.y + directions[i][1], id, visited, amount);
+        walk(output, image.at<uchar>(current), mediumVal,
+             current.x + directions[i][0], current.y + directions[i][1], id,
+             visited, amount);
     }
 
     return false;
