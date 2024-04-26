@@ -187,6 +187,10 @@ void Image::iterate(Point start, Mat &output, int imageLeft, uchar &id,
                 continue;
 
             amount++;
+            // TODO 1. Add area to objects later and do checks via output
+            // TODO 2. Redo the object with a different set of constraints in
+            // TODO certain conditions
+            // TODO or not the whole object but chunk-by-chunk (!)
             m_objects.at<uchar>(point_to_check) = id;
             output.at<uchar>(point_to_check) = id;
 

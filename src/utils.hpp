@@ -31,18 +31,23 @@ class Logger {
 
     std::vector<LineWrapper> m_error_messages = {
         {LineWrapper()},
+        {true, {"[INFO] ", " sucessful", ""}},
         {true, {"[INFO] ", " = ", ""}},
         {true, {"[INFO] using ", " = ", ""}},
         {false, {"[WARN] Area too smol (", "/", ")"}},
-        {false, {"[WARN] Object limit exceeded (", ")"}}};
+        {false, {"[WARN] Object limit exceeded (", ")"}},
+        {false, {"[WARN] Function is off"}},
+    };
 
   public:
     enum ERROR {
         UNDEFINED,
+        SUCCESS,
         INFO,
         INFO_USING,
         WARN_SMOL_AREA,
-        WARN_OBJECT_LIMIT
+        WARN_OBJECT_LIMIT,
+        ERROR_TURNED_OFF,
     };
     enum time { second = 1, ms = 1000, mcs = 1000000 };
 
@@ -75,14 +80,17 @@ class Logger {
           m_save_toggle(save), m_time_toggle(measure_time),
           m_debug_level(debug_level) {} // TODO add checks for debug level
 
-    void start() {
+    ERROR start() {
         if (m_time_toggle) {
             auto start = std::chrono::high_resolution_clock::now();
             m_timer_queue.push(start);
+
+            return ERROR::SUCCESS;
         }
+        return ERROR::ERROR_TURNED_OFF;
     }
 
-    void stop(std::string timer_name = "default timer") {
+    ERROR stop(std::string timer_name = "default timer") {
         if (m_time_toggle) {
             auto stop = std::chrono::high_resolution_clock::now();
             auto duration =
@@ -91,16 +99,22 @@ class Logger {
 
             m_timer_queue.pop();
             m_duration_vector.push_back({timer_name, duration});
+
+            return ERROR::SUCCESS;
         }
+        return ERROR::ERROR_TURNED_OFF;
     }
 
-    void drop() {
+    ERROR drop() {
         if (m_time_toggle) {
             m_timer_queue.pop();
+
+            return ERROR::SUCCESS;
         }
+        return ERROR::ERROR_TURNED_OFF;
     }
 
-    void print(time precision = time::second) {
+    ERROR print(time precision = time::second) {
         if (m_time_toggle && m_debug_level == 2) {
             for (auto duration_entry : m_duration_vector) {
                 double time =
@@ -111,10 +125,13 @@ class Logger {
                 std::cerr << "[INFO] " << duration_entry.first << " = " << time
                           << std::endl; // TODO rework to use log_message
             }
+
+            return ERROR::SUCCESS;
         }
+        return ERROR::ERROR_TURNED_OFF;
     }
 
-    void log(time precision = time::second) {
+    ERROR log(time precision = time::second) {
         if (m_time_toggle && m_save_toggle) {
 
             std::string timers = "";
@@ -139,7 +156,10 @@ class Logger {
             log_lines.push_back(']');
 
             save_to_file(log_lines);
+
+            return ERROR::SUCCESS;
         }
+        return ERROR::ERROR_TURNED_OFF;
     }
 
     void log_message(message msg) {
