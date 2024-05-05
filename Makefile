@@ -9,6 +9,16 @@ r:
 		ln -s ./build/release/ImageProcessing ./ImageProcessing_Release; \
 	fi
 
+.phony: b 
+b: 
+	mkdir -p build
+	cd build && cmake -DCMAKE_BUILD_TYPE=Release ..
+	cd build && make
+
+	@if ! [ -L "./ImageProcessing_Release" ]; then \
+		ln -s ./build/ImageProcessing ./ImageProcessing; \
+	fi
+
 .phony: d
 d: 
 	mkdir -p build/debug
