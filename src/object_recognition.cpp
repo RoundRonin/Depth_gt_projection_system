@@ -17,7 +17,10 @@ Image::Image(string path, string output_location, const Logger &log) {
     m_log = log;
 }
 
-void Image::write(string path) { imwrite(path, image); }
+void Image::write(string path) {
+    // TODO check if folder exists, create if it doesn't
+    imwrite(path, image);
+}
 
 Mat Image::erode(int erosion_dst, int erosion_size) {
     int erosion_type = MORPH_ELLIPSE;

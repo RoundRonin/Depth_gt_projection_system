@@ -215,6 +215,7 @@ class Logger {
     }
 
     void save_to_file(std::string log_lines) {
+        // TODO create folder if it doesn't exist
         std::string file_path = "logs/" + m_log_name + ".json";
         if (!std::filesystem::exists(file_path)) {
             std::ofstream file(file_path);

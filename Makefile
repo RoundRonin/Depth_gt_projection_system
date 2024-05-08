@@ -2,7 +2,7 @@ shell = /bin/sh
 .phony: r
 r: 
 	mkdir -p build/release
-	cd build/release && cmake -DCMAKE_BUILD_TYPE=Release ../..
+	cd build/release && cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release ../..
 	cd build/release && make
 
 	@if ! [ -L "./ImageProcessing_Release" ]; then \
