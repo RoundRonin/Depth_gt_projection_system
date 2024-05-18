@@ -1,162 +1,174 @@
-// #include "utils.hpp"
+#include "utils.hpp"
 
-// #include <chrono>
-// #include <ctime>
-// #include <filesystem>
-// #include <fstream>
-// #include <iomanip>
-// #include <iostream>
-// #include <stack>
-// #include <string>
-// #include <vector>
+#include <chrono>
+#include <ctime>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <stack>
+#include <string>
+#include <vector>
 
-// void Logger::start() {
-//     if (m_time_toggle) {
-//         auto start = std::chrono::high_resolution_clock::now();
-//         m_timer_queue.push(start);
-//     }
-// }
+Logger::ERROR Logger::start() {
+    if (m_time_toggle) {
+        auto start = std::chrono::high_resolution_clock::now();
+        m_timer_queue.push(start);
 
-// void Logger::stop(std::string timer_name) {
-//     if (m_time_toggle) {
-//         auto stop = std::chrono::high_resolution_clock::now();
-//         auto duration =
-//         std::chrono::duration_cast<std::chrono::microseconds>(
-//             stop - m_timer_queue.top());
+        return Logger::ERROR::SUCCESS;
+    }
+    return Logger::ERROR::ERROR_TURNED_OFF;
+}
 
-//         m_timer_queue.pop();
-//         m_duration_vector.push_back({timer_name, duration});
-//     }
-// }
+Logger::ERROR Logger::stop(std::string timer_name) {
+    if (m_time_toggle) {
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+            stop - m_timer_queue.top());
 
-// void Logger::drop() {
-//     if (m_time_toggle) {
-//         m_timer_queue.pop();
-//     }
-// }
+        m_timer_queue.pop();
+        m_duration_vector.push_back({timer_name, duration});
 
-// void Logger::print(time precision) {
-//     if (m_time_toggle && m_debug_level == 2) {
-//         for (auto duration_entry : m_duration_vector) {
-//             double time =
-//                 std::chrono::duration<double>(duration_entry.second).count()
-//                 / precision; // TODO rounding
+        return ERROR::SUCCESS;
+    }
+    return ERROR::ERROR_TURNED_OFF;
+}
 
-//             std::cerr << "[INFO] " << duration_entry.first << " = " << time
-//                       << std::endl; // TODO rework to use log_message
-//         }
-//     }
-// }
+Logger::ERROR Logger::drop() {
+    if (m_time_toggle) {
+        m_timer_queue.pop();
 
-// void Logger::log(time precision) {
-//     if (m_time_toggle && m_save_toggle) {
+        return ERROR::SUCCESS;
+    }
+    return ERROR::ERROR_TURNED_OFF;
+}
 
-//         std::string timers = "";
-//         for (auto duration_entry : m_duration_vector) {
-//             double time =
-//                 std::chrono::duration<double>(duration_entry.second).count()
-//                 / precision; // TODO rounding
+Logger::ERROR Logger::print(time precision) {
+    if (m_time_toggle && m_debug_level == 2) {
+        for (auto duration_entry : m_duration_vector) {
+            double time =
+                std::chrono::duration<double>(duration_entry.second).count() /
+                precision; // TODO rounding
 
-//             timers = timers + "{\"name\": \"" + duration_entry.first +
-//                      "\", \"duration\": \"" + std::to_string(time) + "\"},";
-//         }
-//         timers.pop_back();
+            std::cerr << "[INFO] " << duration_entry.first << " = " << time
+                      << std::endl; // TODO rework to use log_message
+        }
 
-//         std::string current_time = get_formatted_local_time();
+        return ERROR::SUCCESS;
+    }
+    return ERROR::ERROR_TURNED_OFF;
+}
 
-//         std::string log_lines =
-//             "{\"version\": " + std::to_string(m_version) +
-//             ", \"batch\": " + std::to_string(m_batch) + ", \"time\": \"" +
-//             current_time + "\", \"precision\": \"" +
-//             std::to_string(precision) +
-//             "\", \"timers\": [" + timers + "]}";
-//         log_lines.push_back(']');
+Logger::ERROR Logger::log(time precision) {
+    if (m_time_toggle && m_save_toggle) {
 
-//         save_to_file(log_lines);
-//     }
-// }
+        std::string timers = "";
+        for (auto duration_entry : m_duration_vector) {
+            double time =
+                std::chrono::duration<double>(duration_entry.second).count() /
+                precision; // TODO rounding
 
-// void Logger::log_message(message msg) {
-//     if (m_debug_level > 0) { // TODO deal with debug levels
+            timers = timers + "{\"name\": \"" + duration_entry.first +
+                     "\", \"duration\": \"" + std::to_string(time) + "\"},";
+        }
+        timers.pop_back();
 
-//         auto [type, values, name] = msg;
+        std::string current_time = get_formatted_local_time();
 
-//         bool repeated = false;
-//         std::string line_end = "";
-//         std::string line_start = "\n";
-//         auto [counter, last_msg] = m_last_message_counted;
-//         if (msg == last_msg) {
-//             // std::cerr << "GELLP" << std::endl;
-//             repeated = true;
-//             m_last_message_counted.first++;
-//             line_start = "\r";
-//             line_end = " (" + std::to_string(counter + 1) + ")";
-//         } else {
-//             m_last_message_counted.second = msg;
-//             m_last_message_counted.first = 0;
-//         }
+        std::string log_lines =
+            "{\"version\": " + std::to_string(m_version) +
+            ", \"batch\": " + std::to_string(m_batch) + ", \"time\": \"" +
+            current_time + "\", \"precision\": \"" + std::to_string(precision) +
+            "\", \"timers\": [" + timers + "]}";
+        log_lines.push_back(']');
 
-//         LineWrapper wrapped_log = m_error_messages.at(type);
-//         bool isNamed = wrapped_log.IsNamed;
-//         auto log_line = wrapped_log.line;
-//         int shift = 0;
-//         std::string print_line = "";
-//         if (isNamed) {
-//             shift = 1;
-//             print_line += log_line.at(0) + name;
-//         } else
-//             print_line += log_line.at(0) + std::to_string(values.at(0));
+        save_to_file(log_lines);
 
-//         for (int i = 1; i + 1 < log_line.size(); i++) {
-//             print_line += log_line.at(i) + std::to_string(values.at(i -
-//             shift));
-//         }
-//         print_line += log_line.at(log_line.size() - 1);
+        return ERROR::SUCCESS;
+    }
+    return ERROR::ERROR_TURNED_OFF;
+}
 
-//         std::cerr << line_start << print_line << line_end;
-//     }
-// }
+void Logger::log_message(message msg) {
+    if (m_debug_level > 0) { // TODO deal with debug levels
 
-// std::string Logger::get_formatted_local_time() {
-//     std::time_t now =
-//         std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-//     std::tm time_struct = *std::localtime(&now);
+        auto [type, values, name] = msg;
 
-//     std::ostringstream oss;
-//     oss << std::put_time(&time_struct, "%Y-%m-%d %H:%M:%S");
-//     return oss.str();
-// }
+        bool repeated = false;
+        std::string line_end = "";
+        std::string line_start = "\n";
+        auto [counter, last_msg] = m_last_message_counted;
+        if (msg == last_msg) {
+            // std::cerr << "GELLP" << std::endl;
+            repeated = true;
+            m_last_message_counted.first++;
+            line_start = "\r";
+            line_end = " (" + std::to_string(counter + 1) + ")";
+        } else {
+            m_last_message_counted.second = msg;
+            m_last_message_counted.first = 0;
+        }
 
-// void Logger::save_to_file(std::string log_lines) {
-//     std::string file_path = "logs/" + m_log_name + ".json";
-//     if (!std::filesystem::exists(file_path)) {
-//         std::ofstream file(file_path);
-//         file << "[";
-//     }
+        LineWrapper wrapped_log = m_error_messages.at(type);
+        bool isNamed = wrapped_log.IsNamed;
+        auto log_line = wrapped_log.line;
+        int shift = 0;
+        std::string print_line = "";
+        if (isNamed) {
+            shift = 1;
+            print_line += log_line.at(0) + name;
+        } else
+            print_line += log_line.at(0) + std::to_string(values.at(0));
 
-//     std::fstream file(file_path, std::ios::in | std::ios::out |
-//     std::ios::ate); if (!file.is_open()) {
-//         std::cerr << "[ERROR]: Failed to open log file" << std::endl;
-//         return;
-//     }
+        for (int i = 1; i + 1 < log_line.size(); i++) {
+            print_line += log_line.at(i) + std::to_string(values.at(i - shift));
+        }
+        print_line += log_line.at(log_line.size() - 1);
 
-//     std::streampos file_len = file.tellg();
+        std::cerr << line_start << print_line << line_end;
+    }
+}
 
-//     if (file_len > 1) {
-//         file.seekp((int)file_len - 2);
-//         char last_byte;
-//         file >> last_byte;
+std::string Logger::get_formatted_local_time() {
+    std::time_t now =
+        std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::tm time_struct = *std::localtime(&now);
 
-//         if (last_byte == ']') {
-//             file.seekp((int)file_len - 2);
-//             file << ",";
-//         } else {
-//             file.seekp((int)file_len - 1);
-//             file << ",";
-//         }
-//         file << std::endl;
-//     }
+    std::ostringstream oss;
+    oss << std::put_time(&time_struct, "%Y-%m-%d %H:%M:%S");
+    return oss.str();
+}
 
-//     // Write the log line
-//     file << log_lines << std::endl;
-// }
+void Logger::save_to_file(std::string log_lines) {
+    std::string file_path = "logs/" + m_log_name + ".json";
+    if (!std::filesystem::exists(file_path)) {
+        std::ofstream file(file_path);
+        file << "[";
+    }
+
+    std::fstream file(file_path, std::ios::in | std::ios::out | std::ios::ate);
+    if (!file.is_open()) {
+        std::cerr << "[ERROR]: Failed to open log file" << std::endl;
+        return;
+    }
+
+    std::streampos file_len = file.tellg();
+
+    if (file_len > 1) {
+        file.seekp((int)file_len - 2);
+        char last_byte;
+        file >> last_byte;
+
+        if (last_byte == ']') {
+            file.seekp((int)file_len - 2);
+            file << ",";
+        } else {
+            file.seekp((int)file_len - 1);
+            file << ",";
+        }
+        file << std::endl;
+    }
+
+    // Write the log line
+    file << log_lines << std::endl;
+}

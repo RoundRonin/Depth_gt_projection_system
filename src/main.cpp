@@ -1,10 +1,13 @@
 
+#include "../include/sl_utils.hpp"
+#include "converter.hpp"
 #include "object_recognition.cpp"
 #include "templategen.cpp"
-#include "utils.hpp"
+#include "utils.cpp"
 
 using namespace cv;
 using namespace std;
+using namespace dm;
 
 // TODO check if an image exists in the location
 // TODO frontend
@@ -16,6 +19,8 @@ using namespace std;
 // TODO
 
 struct Settings {
+    bool from_SVO = false;
+
     bool save_logs = false;
     bool measure_time = false;
     char recurse = false;
@@ -38,8 +43,16 @@ int main(int argc, char **argv) {
     if (argc <= 1) {
         cout << "Usage: \n";
         cout << "$ " << argv[0] << " <DEPTH_MAP> \n";
-        cout << "  ** Depth map file is mandatory in the application ** \n\n";
+        cout << "or\n";
+        cout << "$ " << argv[0] << " <SVO> \n";
+        cout << "  ** Depth map file or .SVO file is mandatory in the "
+                "application ** \n\n";
         return EXIT_FAILURE;
+    }
+
+    string filename = argv[1];
+    if (filename.substr(filename.size() - 4) == ".svo") {
+        sets.from_SVO = true;
     }
 
     if (argv[1][0] == '-')
@@ -153,9 +166,27 @@ int main(int argc, char **argv) {
         }
     }
 
-    Logger log("log", 0, 0, sets.save_logs, sets.measure_time,
-               sets.debug_level);
-    Image image(sets.FilePath, sets.OutputLocation, log);
+    Logger logger("log", 0, 0, sets.save_logs, sets.measure_time,
+                  sets.debug_level);
+
+    Image image;
+
+    if (sets.from_SVO) {
+        CameraManager camMan(argv[1]);
+        camMan.openCamera();
+
+        camMan.initSVO();
+        auto returned_state = camMan.grab();
+        if (returned_state <= ERROR_CODE::SUCCESS) {
+            auto result = camMan.imageProcessing();
+            cv::Mat img = slMat2cvMat(result.second);
+            image = Image(img, sets.OutputLocation, logger);
+        }
+    } else {
+        image = Image(sets.FilePath, sets.OutputLocation, logger);
+    }
+
+    image.write(sets.OutputLocation + "init_image.png");
 
     image.erode(5, 5);
     image.dilate(5, 5);

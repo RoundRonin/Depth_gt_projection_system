@@ -26,7 +26,14 @@ class Image {
     };
 
   public:
+    Image() {
+        // TODO set empty image and output location
+        m_log = Logger();
+    };
+
     Image(std::string path, std::string output_location, const Logger &log);
+
+    Image(cv::Mat image, std::string output_location, const Logger &log);
 
     void write(std::string path);
 

@@ -22,7 +22,7 @@ b:
 .phony: d
 d: 
 	mkdir -p build/debug
-	cd build/debug && cmake ../.. -D CMAKE_BUILD_TYPE=Debug
+	cd build/debug && cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Debug ../..
 	cd build/debug && make
 
 	ln -s ./build/debug/ImageProcessing ./ImageProcessing_Debug

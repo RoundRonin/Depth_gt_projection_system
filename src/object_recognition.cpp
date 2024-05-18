@@ -11,7 +11,19 @@ Image::Image(string path, string output_location, const Logger &log) {
     if (image.empty())
         return;
 
-    m_objects = Mat(image.rows, image.cols, CV_8U, double(0));
+    m_objects = cv::Mat(image.rows, image.cols, CV_8U, double(0));
+    m_out_path = output_location; // TODO add checks
+
+    m_log = log;
+}
+
+Image::Image(cv::Mat o_image, std::string output_location, const Logger &log) {
+    image = o_image;
+    CV_Assert(image.depth() == CV_8U);
+    if (image.empty())
+        return;
+
+    m_objects = cv::Mat(image.rows, image.cols, CV_8U, double(0));
     m_out_path = output_location; // TODO add checks
 
     m_log = log;
@@ -22,26 +34,26 @@ void Image::write(string path) {
     imwrite(path, image);
 }
 
-Mat Image::erode(int erosion_dst, int erosion_size) {
+cv::Mat Image::erode(int erosion_dst, int erosion_size) {
     int erosion_type = MORPH_ELLIPSE;
-    Mat element = getStructuringElement(
+    cv::Mat element = getStructuringElement(
         erosion_type, Size(2 * erosion_size + 1, 2 * erosion_size + 1),
         Point(erosion_size, erosion_size));
 
-    Mat output;
+    cv::Mat output;
     cv::erode(image, output, element);
 
     image = output;
     return output;
 }
 
-Mat Image::dilate(int dilation_dst, int dilation_size) {
+cv::Mat Image::dilate(int dilation_dst, int dilation_size) {
     int dilation_type = MORPH_ELLIPSE;
-    Mat element = getStructuringElement(
+    cv::Mat element = getStructuringElement(
         dilation_type, Size(2 * dilation_size + 1, 2 * dilation_size + 1),
         Point(dilation_size, dilation_size));
 
-    Mat output;
+    cv::Mat output;
     cv::dilate(image, output, element);
 
     image = output;
@@ -81,7 +93,7 @@ void Image::findObjects(uchar zlimit, uchar minDistance, uchar medium_limit,
     uchar id = UCHAR_MAX;
 
     // Preinit
-    Mat output = Mat(image.rows, image.cols, CV_8U, double(0));
+    cv::Mat output = cv::Mat(image.rows, image.cols, CV_8U, double(0));
     Point current = Point(0, 0);
     uchar val = 0;
 
@@ -139,11 +151,11 @@ void Image::findObjects(uchar zlimit, uchar minDistance, uchar medium_limit,
     imwrite(m_out_path + "objects.png", m_objects);
 }
 
-void Image::iterate(Point start, Mat &output, int imageLeft, uchar &id,
+void Image::iterate(Point start, cv::Mat &output, int imageLeft, uchar &id,
                     Stats stats) {
     auto [visited, amount] = stats;
 
-    output = Mat(image.rows, image.cols, CV_8U, double(0));
+    output = cv::Mat(image.rows, image.cols, CV_8U, double(0));
     m_objects.at<uchar>(start) = id;
     output.at<uchar>(start) = id;
     Dirs dirs;
@@ -202,17 +214,17 @@ void Image::iterate(Point start, Mat &output, int imageLeft, uchar &id,
     }
 }
 
-void Image::paint(Point start, Mat &output, uchar &id, Stats stats) {
+void Image::paint(Point start, cv::Mat &output, uchar &id, Stats stats) {
     auto [visited, amount] = stats;
 
-    output = Mat(image.rows, image.cols, CV_8U, double(0));
+    output = cv::Mat(image.rows, image.cols, CV_8U, double(0));
     uchar start_z = image.at<uchar>(start);
     double mediumVal = start_z;
 
     walk(output, start_z, mediumVal, start.x, start.y, id, visited, amount);
 }
 
-bool Image::walk(Mat &output, uchar prev_z, double &mediumVal, int x, int y,
+bool Image::walk(cv::Mat &output, uchar prev_z, double &mediumVal, int x, int y,
                  uchar &id, int &visited, int &amount) {
 
     visited++;
