@@ -60,6 +60,7 @@ int main(int argc, char **argv) {
 
     sets.FilePath = argv[1];
 
+    // TODO fix crash when "-A 10" with a space inbetween
     for (int i = 2; i < argc; i++) {
         char *arg = argv[i];
         vector<char> flags = {};
