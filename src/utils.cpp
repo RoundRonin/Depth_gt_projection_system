@@ -10,86 +10,7 @@
 #include <string>
 #include <vector>
 
-Logger::ERROR Logger::start() {
-    if (m_time_toggle) {
-        auto start = std::chrono::high_resolution_clock::now();
-        m_timer_queue.push(start);
-
-        return Logger::ERROR::SUCCESS;
-    }
-    return Logger::ERROR::ERROR_TURNED_OFF;
-}
-
-Logger::ERROR Logger::stop(std::string timer_name) {
-    if (m_time_toggle) {
-        auto stop = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-            stop - m_timer_queue.top());
-
-        m_timer_queue.pop();
-        m_duration_vector.push_back({timer_name, duration});
-
-        return ERROR::SUCCESS;
-    }
-    return ERROR::ERROR_TURNED_OFF;
-}
-
-Logger::ERROR Logger::drop() {
-    if (m_time_toggle) {
-        m_timer_queue.pop();
-
-        return ERROR::SUCCESS;
-    }
-    return ERROR::ERROR_TURNED_OFF;
-}
-
-Logger::ERROR Logger::print(time precision) {
-    if (m_time_toggle && m_debug_level == 2) {
-        for (auto duration_entry : m_duration_vector) {
-            double time =
-                std::chrono::duration<double>(duration_entry.second).count() /
-                precision; // TODO rounding
-
-            std::cerr << "[INFO] " << duration_entry.first << " = " << time
-                      << std::endl; // TODO rework to use log_message
-        }
-
-        return ERROR::SUCCESS;
-    }
-    return ERROR::ERROR_TURNED_OFF;
-}
-
-Logger::ERROR Logger::log(time precision) {
-    if (m_time_toggle && m_save_toggle) {
-
-        std::string timers = "";
-        for (auto duration_entry : m_duration_vector) {
-            double time =
-                std::chrono::duration<double>(duration_entry.second).count() /
-                precision; // TODO rounding
-
-            timers = timers + "{\"name\": \"" + duration_entry.first +
-                     "\", \"duration\": \"" + std::to_string(time) + "\"},";
-        }
-        timers.pop_back();
-
-        std::string current_time = get_formatted_local_time();
-
-        std::string log_lines =
-            "{\"version\": " + std::to_string(m_version) +
-            ", \"batch\": " + std::to_string(m_batch) + ", \"time\": \"" +
-            current_time + "\", \"precision\": \"" + std::to_string(precision) +
-            "\", \"timers\": [" + timers + "]}";
-        log_lines.push_back(']');
-
-        save_to_file(log_lines);
-
-        return ERROR::SUCCESS;
-    }
-    return ERROR::ERROR_TURNED_OFF;
-}
-
-void Logger::log_message(message msg) {
+void Printer::log_message(message msg) {
     if (m_debug_level > 0) { // TODO deal with debug levels
 
         auto [type, values, name] = msg;
@@ -127,6 +48,98 @@ void Logger::log_message(message msg) {
 
         std::cerr << line_start << print_line << line_end;
     }
+}
+
+void Printer::log_message(exception exception) {
+    std::cerr << "[ERROR] " << exception.what() << std::endl;
+}
+
+void Printer::setDebugLevel(int debug_level) {
+    if (debug_level < 0)
+        m_debug_level = 0;
+    else if (debug_level > 4)
+        m_debug_level = 4;
+    else
+        m_debug_level = debug_level;
+}
+
+Printer::ERROR Logger::start() {
+    if (m_time_toggle) {
+        auto start = std::chrono::high_resolution_clock::now();
+        m_timer_queue.push(start);
+
+        return Printer::ERROR::SUCCESS;
+    }
+    return Printer::ERROR::ERROR_TURNED_OFF;
+}
+
+Printer::ERROR Logger::stop(std::string timer_name) {
+    if (m_time_toggle) {
+        auto stop = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+            stop - m_timer_queue.top());
+
+        m_timer_queue.pop();
+        m_duration_vector.push_back({timer_name, duration});
+
+        return Printer::ERROR::SUCCESS;
+    }
+    return Printer::ERROR::ERROR_TURNED_OFF;
+}
+
+Printer::ERROR Logger::drop() {
+    if (m_time_toggle) {
+        m_timer_queue.pop();
+
+        return Printer::ERROR::SUCCESS;
+    }
+    return Printer::ERROR::ERROR_TURNED_OFF;
+}
+
+Printer::ERROR Logger::print(time precision) {
+    if (m_time_toggle && m_debug_level == 2) {
+        for (auto duration_entry : m_duration_vector) {
+            double time =
+                std::chrono::duration<double>(duration_entry.second).count() /
+                precision; // TODO rounding
+
+            std::cerr << "[INFO] " << duration_entry.first << " = " << time
+                      << std::endl; // TODO rework to use log_message
+        }
+
+        return Printer::ERROR::SUCCESS;
+    }
+    return Printer::ERROR::ERROR_TURNED_OFF;
+}
+
+Printer::ERROR Logger::log(time precision) {
+    if (m_time_toggle && m_save_toggle) {
+
+        std::string timers = "";
+        for (auto duration_entry : m_duration_vector) {
+            double time =
+                std::chrono::duration<double>(duration_entry.second).count() /
+                precision; // TODO rounding
+
+            timers = timers + "{\"name\": \"" + duration_entry.first +
+                     "\", \"duration\": \"" + std::to_string(time) + "\"},";
+        }
+        timers.pop_back();
+
+        std::string current_time = get_formatted_local_time();
+
+        std::string log_lines =
+            "{\"version\": " + std::to_string(m_version) +
+            ", \"batch\": " + std::to_string(m_batch) + ", \"time\": \"" +
+            current_time + "\", \"precision\": \"" + std::to_string(precision) +
+            "\", \"timers\": [" + timers + "]}";
+        log_lines.push_back(']');
+
+        save_to_file(log_lines);
+
+        return Printer::ERROR::SUCCESS;
+    }
+    return Printer::ERROR::ERROR_TURNED_OFF;
 }
 
 std::string Logger::get_formatted_local_time() {

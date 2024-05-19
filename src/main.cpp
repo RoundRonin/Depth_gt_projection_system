@@ -2,6 +2,7 @@
 #include "../include/sl_utils.hpp"
 #include "converter.hpp"
 #include "object_recognition.cpp"
+#include "settings.hpp"
 #include "templategen.cpp"
 #include "utils.cpp"
 
@@ -18,197 +19,69 @@ using namespace dm;
 // TODO
 // TODO
 
-struct Settings {
-    bool from_SVO = false;
-
-    bool save_logs = false;
-    bool measure_time = false;
-    char recurse = false;
-    char debug_level = 0;
-
-    uchar zlimit = 10;
-    uchar minDistance = 0;
-    uchar medium_limit = 10;
-    int minArea = 1000;
-    int maxObjects = 10;
-
-    string FilePath;
-    string OutputLocation = "./Result/";
-};
-
 int main(int argc, char **argv) {
 
-    Settings sets{};
+    Settings settings;
+    Printer printer;
 
-    if (argc <= 1) {
-        cout << "Usage: \n";
-        cout << "$ " << argv[0] << " <DEPTH_MAP> \n";
-        cout << "or\n";
-        cout << "$ " << argv[0] << " <SVO> \n";
-        cout << "  ** Depth map file or .SVO file is mandatory in the "
-                "application ** \n\n";
+    auto Result = settings.Init(argc, argv);
+    if (Result == Printer::ERROR::ARGS_FAILURE) {
+        printer.log_message({Printer::ERROR::ARGS_FAILURE, {}, argv[0]});
         return EXIT_FAILURE;
     }
 
-    string filename = argv[1];
-    if (filename.substr(filename.size() - 4) == ".svo") {
-        sets.from_SVO = true;
-    }
-
-    if (argv[1][0] == '-')
+    try {
+        settings.Parse();
+    } catch (const std::exception &x) {
+        printer.log_message({Printer::ERROR::FLAGS_FAILURE, {}, argv[0]});
+        printer.log_message(x);
         return EXIT_FAILURE;
-
-    sets.FilePath = argv[1];
-
-    // TODO fix crash when "-A 10" with a space inbetween
-    for (int i = 2; i < argc; i++) {
-        char *arg = argv[i];
-        vector<char> flags = {};
-        if (arg[0] == '-') {
-            int j = 1;
-            while (arg[j] > 64 && arg[j] < 91 || arg[j] > 96 && arg[j] < 123) {
-                flags.push_back(arg[j]);
-                j++;
-            }
-        } else
-            continue;
-
-        bool wasArgWithParams = false;
-
-        for (auto flag : flags) {
-            switch (flag) {
-            case 'l': { // turn on log saving
-                sets.save_logs = true;
-                break;
-            }
-            case 't': { // turn on measuring time
-                sets.measure_time = true;
-                break;
-            }
-            case 'r': { // use recursion instead of iterations
-                sets.recurse = true;
-                break;
-            }
-            case 'd': { // set Debug level
-                if (wasArgWithParams)
-                    break;
-
-                char level = atoi(argv[i + 1]);
-                if (level < 0)
-                    level = 0;
-                if (level > 2)
-                    level = 2;
-
-                sets.debug_level = level;
-                wasArgWithParams = true;
-                break;
-            }
-            case 'S': { // set output location
-                if (wasArgWithParams)
-                    break;
-
-                sets.OutputLocation = argv[i + 1];
-                wasArgWithParams = true;
-                break;
-            }
-            case 'Z': { // depth difference limit
-                if (wasArgWithParams)
-                    break;
-
-                uchar zlimit = atoi(argv[i + 1]);
-                // TODO checks;
-                sets.zlimit = zlimit;
-                wasArgWithParams = true;
-                break;
-            }
-            case 'D': { // min distance
-                if (wasArgWithParams)
-                    break;
-
-                uchar minDistance = atoi(argv[i + 1]);
-                // TODO checks;
-                sets.minDistance = minDistance;
-                wasArgWithParams = true;
-                break;
-            }
-            case 'M': { // medium
-                if (wasArgWithParams)
-                    break;
-
-                uchar medium = atoi(argv[i + 1]);
-                // TODO checks;
-                sets.medium_limit = medium;
-                wasArgWithParams = true;
-                break;
-            }
-            case 'A': { // min area
-                if (wasArgWithParams)
-                    break;
-
-                int minArea = atoi(argv[i + 1]);
-                // TODO checks;
-                sets.minArea = minArea;
-                wasArgWithParams = true;
-                break;
-            }
-            case 'O': { // max objects
-                if (wasArgWithParams)
-                    break;
-
-                int maxObjects = atoi(argv[i + 1]);
-                // TODO checks;
-                sets.maxObjects = maxObjects;
-                wasArgWithParams = true;
-                break;
-            }
-            default:
-                break;
-            }
-        }
     }
 
-    Logger logger("log", 0, 0, sets.save_logs, sets.measure_time,
-                  sets.debug_level);
-
+    printer.setDebugLevel(settings.debug_level);
+    Logger logger("log", 0, 0, settings.save_logs, settings.measure_time,
+                  settings.debug_level);
     Image image;
 
-    if (sets.from_SVO) {
-        CameraManager camMan(argv[1]);
+    if (settings.from_SVO) {
+        CameraManager camMan((settings.FilePath).c_str());
         camMan.openCamera();
 
         camMan.initSVO();
         auto returned_state = camMan.grab();
         if (returned_state <= ERROR_CODE::SUCCESS) {
             auto result = camMan.imageProcessing();
-            cv::Mat img = slMat2cvMat(result.second);
-            image = Image(img, sets.OutputLocation, logger);
+            // cv::Mat img = slMat2cvMat(result.second);
+            result.second.write(
+                (settings.outputLocation.value + "init_image.png").c_str());
+            // image1 = Image(img, sets.outputLocation, logger);
+            image = Image(settings.outputLocation.value + "init_image.png",
+                          settings.outputLocation.value, logger, printer);
         }
     } else {
-        image = Image(sets.FilePath, sets.OutputLocation, logger);
+        image = Image(settings.FilePath, settings.outputLocation.value, logger,
+                      printer);
     }
 
-    image.write(sets.OutputLocation + "init_image.png");
+    // TODO romeve this workaround. It currently saves an image
+    // TODO and then reads it.
+    // TODO it seems, slMat2cvMat has some kind of a bug
+    // image.write(settings.outputLocation.value + "init_image.png");
 
-    image.erode(5, 5);
+    // TODO 5544332244
     image.dilate(5, 5);
+    image.erode(5, 5);
 
-    image.erode(3, 3);
-    image.dilate(3, 3);
-
-    image.erode(2, 2);
-    image.dilate(2, 2);
-
-    image.dilate(3, 3);
-
-    image.write(sets.OutputLocation + "modified_image.png");
-    image.findObjects(sets.zlimit, sets.minDistance, sets.medium_limit,
-                      sets.minArea, sets.maxObjects, sets.recurse);
+    image.write(settings.outputLocation.value + "modified_image.png");
+    image.findObjects(settings.zlimit, settings.minDistance,
+                      settings.medium_limit, settings.minArea,
+                      settings.maxObjects, settings.recurse);
 
     int width = image.image.cols;
     int height = image.image.rows;
     cv::Size size = image.image.size();
 
-    // VideoWriter video(OutputLocation + "color_gradient.avi",
+    // VideoWriter video(outputLocation + "color_gradient.avi",
     //                   VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, size);
 
     // if (!video.isOpened()) {

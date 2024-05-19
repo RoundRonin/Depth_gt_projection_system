@@ -8,6 +8,7 @@
 
 #include "utils.hpp"
 
+// TODO restructure so that there would be initparams analog
 class Image {
     cv::Mat m_objects;
     std::string m_out_path;
@@ -15,6 +16,7 @@ class Image {
     uchar m_min_distance;
     uchar m_medium_limit;
     Logger m_log;
+    Printer m_printer;
 
   public:
     cv::Mat image;
@@ -31,9 +33,12 @@ class Image {
         m_log = Logger();
     };
 
-    Image(std::string path, std::string output_location, const Logger &log);
+    // TODO check if image on the path exists, throw exception if it doesn't
+    Image(std::string path, std::string output_location, const Logger &log,
+          const Printer &printer);
 
-    Image(cv::Mat image, std::string output_location, const Logger &log);
+    Image(cv::Mat image, std::string output_location, const Logger &log,
+          const Printer &printer);
 
     void write(std::string path);
 

@@ -5,7 +5,9 @@ using namespace std;
 using namespace cv;
 namespace fs = std::filesystem;
 
-Image::Image(string path, string output_location, const Logger &log) {
+Image::Image(string path, string output_location, const Logger &log,
+             const Printer &printer)
+    : m_log(log), m_printer(printer) {
     image = imread(path, IMREAD_GRAYSCALE);
     CV_Assert(image.depth() == CV_8U);
     if (image.empty())
@@ -13,11 +15,11 @@ Image::Image(string path, string output_location, const Logger &log) {
 
     m_objects = cv::Mat(image.rows, image.cols, CV_8U, double(0));
     m_out_path = output_location; // TODO add checks
-
-    m_log = log;
 }
 
-Image::Image(cv::Mat o_image, std::string output_location, const Logger &log) {
+Image::Image(cv::Mat o_image, std::string output_location, const Logger &log,
+             const Printer &printer)
+    : m_log(log), m_printer(printer) {
     image = o_image;
     CV_Assert(image.depth() == CV_8U);
     if (image.empty())
@@ -25,8 +27,6 @@ Image::Image(cv::Mat o_image, std::string output_location, const Logger &log) {
 
     m_objects = cv::Mat(image.rows, image.cols, CV_8U, double(0));
     m_out_path = output_location; // TODO add checks
-
-    m_log = log;
 }
 
 void Image::write(string path) {
@@ -64,16 +64,16 @@ void Image::findObjects(uchar zlimit, uchar minDistance, uchar medium_limit,
                         int minDots, int maxObjects, bool recurse) {
 
     // printFindInfo(zlimit, minDistance, minDots, maxObjects);
-    auto i_use = Logger::ERROR::INFO_USING;
-    auto i_info = Logger::ERROR::INFO;
-    auto w_smol = Logger::ERROR::WARN_SMOL_AREA;
-    auto w_limit = Logger::ERROR::WARN_OBJECT_LIMIT;
+    auto i_use = Printer::ERROR::INFO_USING;
+    auto i_info = Printer::ERROR::INFO;
+    auto w_smol = Printer::ERROR::WARN_SMOL_AREA;
+    auto w_limit = Printer::ERROR::WARN_OBJECT_LIMIT;
 
-    m_log.log_message({i_use, {(int)zlimit}, "depth difference limit"});
-    m_log.log_message({i_use, {(int)minDistance}, "minimum distance"});
-    m_log.log_message({i_use, {(int)medium_limit}, "medium limit"});
-    m_log.log_message({i_use, {minDots}, "minimum area"});
-    m_log.log_message({i_use, {maxObjects}, "maximum number of objects"});
+    m_printer.log_message({i_use, {(int)zlimit}, "depth difference limit"});
+    m_printer.log_message({i_use, {(int)minDistance}, "minimum distance"});
+    m_printer.log_message({i_use, {(int)medium_limit}, "medium limit"});
+    m_printer.log_message({i_use, {minDots}, "minimum area"});
+    m_printer.log_message({i_use, {maxObjects}, "maximum number of objects"});
 
     m_zlimit = zlimit;
     m_min_distance = minDistance;
@@ -121,7 +121,7 @@ void Image::findObjects(uchar zlimit, uchar minDistance, uchar medium_limit,
             iterate(current, output, imageLeft, id, stats);
 
         if (amount < minDots) {
-            m_log.log_message({w_smol, {amount, minDots}});
+            m_printer.log_message({w_smol, {amount, minDots}});
             m_log.drop();
             continue;
         }
@@ -129,7 +129,7 @@ void Image::findObjects(uchar zlimit, uchar minDistance, uchar medium_limit,
         if (mask_mats.size() < maxObjects)
             mask_mats.push_back(output);
         else {
-            m_log.log_message({w_limit, {maxObjects}});
+            m_printer.log_message({w_limit, {maxObjects}});
             m_log.drop();
             continue;
         }
@@ -137,8 +137,8 @@ void Image::findObjects(uchar zlimit, uchar minDistance, uchar medium_limit,
         m_log.stop("seek");
     }
 
-    m_log.log_message({i_info, {visited}, "visited"});
-    m_log.log_message({i_info, {image.rows * image.cols}, "total"});
+    m_printer.log_message({i_info, {visited}, "visited"});
+    m_printer.log_message({i_info, {image.rows * image.cols}, "total"});
 
     m_log.stop("overall");
     m_log.print();

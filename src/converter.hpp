@@ -94,7 +94,7 @@ class CameraManager {
         cam = cam_matrix{params.cx, params.cy, params.fx, params.fy};
 
         // Setting the depth confidence parameters
-        runParameters.confidence_threshold = 100;         // TODO cli
+        runParameters.confidence_threshold = 10;          // TODO cli
         runParameters.texture_confidence_threshold = 100; // TODO cli
 
         runParameters.enable_fill_mode = false; // TODO cli
