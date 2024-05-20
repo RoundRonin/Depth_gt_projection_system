@@ -1,10 +1,10 @@
 
 #include "../include/sl_utils.hpp"
-#include "converter.hpp"
-#include "object_recognition.cpp"
-#include "settings.hpp"
-#include "templategen.cpp"
-#include "utils.cpp"
+#include "./headers/converter.hpp"
+#include "./headers/settings.hpp"
+#include "./impl/object_recognition.cpp"
+#include "./impl/templategen.cpp"
+#include "./impl/utils.cpp"
 
 using namespace cv;
 using namespace std;
@@ -45,6 +45,7 @@ int main(int argc, char **argv) {
 
     if (settings.from_SVO) {
         CameraManager camMan((settings.FilePath).c_str());
+        camMan.setParams();
         camMan.openCamera();
 
         camMan.initSVO();

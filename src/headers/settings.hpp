@@ -34,30 +34,16 @@ class Settings {
         Parameter(T value, option option, string description)
             : value(value), opt(option) {
 
-            std::string str = std::format("-{} --{} {:<30}{}", option.val,
-                                          option.name, "", description);
-            // string str = "";
-            // str += "-" + option.val + " --" + option.name;
-            // str += std::string(30 - str.length(), " ");
-            // str += description;
-
-            help = str;
+            help = std::format("-{} --{} {:<30}{}", option.val, option.name, "",
+                               description);
         };
 
         Parameter(T value, option option, string description,
                   string value_template)
             : value(value), opt(option) {
 
-            std::string str =
-                std::format("-{} --{}={} {:<30}{}", option.val, option.name,
-                            value_template, "", description);
-            // string str = "";
-            // str += "-" + option.val + " --" + option.name;
-            // str += "=" + value_template;
-            // str += std::string(30 - str.length(), " ");
-            // str += description;
-
-            help = str;
+            help = std::format("-{} --{}={} {:<30}{}", option.val, option.name,
+                               value_template, "", description);
         }
 
         descriptor getDescriptors() { return {opt, help}; }
@@ -73,14 +59,19 @@ class Settings {
     struct option *m_long_options;
 
   public:
+    // General params
     bool from_SVO = false;
     int debug_level = 0;
     string FilePath;
-
     Parameter<bool> save_logs{
         false, {"help", no_argument, 0, 'h'}, "toggle save logs"};
     Parameter<bool> measure_time{
         false, {"time", no_argument, 0, 't'}, "toggle time measurement"};
+    Parameter<string> outputLocation{"./Result/",
+                                     {"output", required_argument, 0, 'O'},
+                                     "define output location "};
+
+    // Object recognition params
     Parameter<bool> recurse{
         false, {"recurse", no_argument, 0, 'r'}, "toggle recursion"};
     Parameter<uchar> zlimit{
@@ -89,8 +80,7 @@ class Settings {
         "define max difference between two points [0, 255]"};
     Parameter<uchar> minDistance{0,
                                  {"mindistance", required_argument, 0, 'D'},
-                                 "define min distance from the camera that is "
-                                 "being considered as background [0, 255]"};
+                                 "define min distance [0, 255]"};
     Parameter<uchar> medium_limit{10,
                                   {"medium", required_argument, 0, 'M'},
                                   "define medium value [0, 255]"};
@@ -100,9 +90,27 @@ class Settings {
     Parameter<int> maxObjects{10,
                               {"maxobjects", required_argument, 0, 'B'},
                               "define maximum amount objects [int32]"};
-    Parameter<string> outputLocation{"./Result/",
-                                     {"output", required_argument, 0, 'O'},
-                                     "define output location "};
+
+    // TODO size constraints
+    // Camara params
+    Parameter<int> fill_mode{10,
+                             {"fillmode", required_argument, 0, 'f'},
+                             "define depth map theshold [0 100]"};
+    Parameter<int> threshold{50,
+                             {"threshold", required_argument, 0, 'T'},
+                             "define depth map theshold [0 100]"};
+    Parameter<int> texture_threshold{
+        100,
+        {"threshold-texture", required_argument, 0, 'X'},
+        "define texture theshold [0 100]"};
+    Parameter<int> depth_mode{3,
+                              {"", required_argument, 0, 'U'},
+                              "define depth mode: 0-6: NONE, PERFORMANCE, "
+                              "QUALITY, ULTRA, NEURAL, NEURAL+, LAST "};
+    Parameter<int> camera_distance{
+        20,
+        {"cameradistance", required_argument, 0, 'C'},
+        "define camera distance [0 20]"};
 
     Settings() {
         m_descriptors.push_back(save_logs.getDescriptors());
@@ -114,6 +122,11 @@ class Settings {
         m_descriptors.push_back(minArea.getDescriptors());
         m_descriptors.push_back(maxObjects.getDescriptors());
         m_descriptors.push_back(outputLocation.getDescriptors());
+        m_descriptors.push_back(fill_mode.getDescriptors());
+        m_descriptors.push_back(threshold.getDescriptors());
+        m_descriptors.push_back(texture_threshold.getDescriptors());
+        m_descriptors.push_back(depth_mode.getDescriptors());
+        m_descriptors.push_back(camera_distance.getDescriptors());
     }
 
     Printer::ERROR Init(int argc, char **argv) {
@@ -140,13 +153,11 @@ class Settings {
         static int verbose_flag;
         int c;
 
-        // l log t time r recurse O(S) output Z
-        // zlimit D mindistance M medium A minarea B maxobjects
         while (1) {
             std::vector<option> long_options{
                 {"verbose", no_argument, &debug_level, 2},
                 {"brief", no_argument, &debug_level, 1},
-                {"prod", no_argument, &debug_level, 0},
+                {"production", no_argument, &debug_level, 0},
             };
 
             for (auto descriptor : m_descriptors) {
@@ -160,7 +171,6 @@ class Settings {
             c = getopt_long(m_argc, m_argv, "hltrO:Z:D:M:A:B:", m_long_options,
                             &option_index);
 
-            /* Detect the end of the options. */
             if (c == -1)
                 break;
 
@@ -215,6 +225,26 @@ class Settings {
                 maxObjects = atoi(optarg);
                 break;
             }
+            case 'f': {
+                fill_mode = true;
+                break;
+            }
+            case 'T': {
+                threshold = atoi(optarg);
+                break;
+            }
+            case 'X': {
+                maxObjects = atoi(optarg);
+                break;
+            }
+            case 'U': {
+                maxObjects = atoi(optarg);
+                break;
+            }
+            case 'C': {
+                maxObjects = atoi(optarg);
+                break;
+            }
             default:
                 break;
             }
@@ -229,24 +259,4 @@ class Settings {
         std::cout << "   $ " << m_argv[0] << "<DEPTH_MAP|SVO> <flags>"
                   << std::endl;
         std::cout << "** Depth map file or .SVO file is mandatory for the "
-                     "application **"
-                  << std::endl;
-    }
-    void printHelp() {
-
-        printUsage();
-        std::cout << std::endl;
-        std::cout << "-h, --help                    show help" << std::endl;
-
-        for (auto discriptor : m_descriptors) {
-            std::cout << discriptor.help << std::endl;
-        }
-
-        std::cout << std::endl;
-        std::cout << "To set debug level use [--verbose|--brief|--production]\n"
-                     "for levels 2, 1, 0"
-                  << std::endl;
-    }
-};
-
-#endif
+               

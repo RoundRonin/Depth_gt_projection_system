@@ -33,6 +33,33 @@ void print(string msg_prefix, ERROR_CODE err_code, string msg_suffix) {
     cout << endl;
 }
 
+template <typename T> struct Parameter {
+    T value;
+    option opt;
+    string help;
+
+    , , ,
+} struct Data {
+    int height = 10;
+    double pressure = 7.8;
+    bool isProtected = true;
+
+    uchar maxDistance = 7;
+    uchar level = 3;
+};
+
+void main() {
+    Data data;
+
+    func1(data.height, data.pressure);
+    func2(data.maxDistance, data.level);
+    ...
+
+        for (auto param : data) {
+        param = updateValueSecurely(param);
+    }
+}
+
 struct spatial_data {
     vector<sl::float4> point_cloud_values;
     vector<array<int, 3>> triangles;
@@ -64,18 +91,27 @@ class CameraManager {
     int svo_position;
 
   public:
-    CameraManager(sl::String filepath) {
+    CameraManager(sl::String filepath,
+                  DEPTH_MODE depth_mode = DEPTH_MODE::ULTRA,
+                  int max_distance = 20) {
         // Create ZED objects
         init_parameters.input.setFromSVOFile(filepath);
 
-        init_parameters.depth_mode = DEPTH_MODE::ULTRA; // TODO cli
+        init_parameters.depth_mode = depth_mode;
         init_parameters.coordinate_system =
             COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
-        init_parameters.sdk_verbose = 1;
+        init_parameters.sdk_verbose = 1; // TODO cli?
 
         init_parameters.camera_resolution = RESOLUTION::AUTO;
         init_parameters.coordinate_units = UNIT::METER;
-        init_parameters.depth_maximum_distance = 20; // TODO cli
+        init_parameters.depth_maximum_distance = max_distance;
+    }
+
+    ERROR_CODE setParams(int threshold = 10, int texture_threshold = 100,
+                         bool fill_mode = false) {
+        runParameters.confidence_threshold = threshold;
+        runParameters.texture_confidence_threshold = texture_threshold;
+        runParameters.enable_fill_mode = fill_mode;
     }
 
     ERROR_CODE openCamera() {
@@ -92,12 +128,6 @@ class CameraManager {
                           .camera_configuration.calibration_parameters.left_cam;
 
         cam = cam_matrix{params.cx, params.cy, params.fx, params.fy};
-
-        // Setting the depth confidence parameters
-        runParameters.confidence_threshold = 10;          // TODO cli
-        runParameters.texture_confidence_threshold = 100; // TODO cli
-
-        runParameters.enable_fill_mode = false; // TODO cli
 
         return ERROR_CODE::SUCCESS;
     }

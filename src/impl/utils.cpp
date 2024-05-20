@@ -50,7 +50,7 @@ void Printer::log_message(message msg) {
     }
 }
 
-void Printer::log_message(exception exception) {
+void Printer::log_message(std::exception exception) {
     std::cerr << "[ERROR] " << exception.what() << std::endl;
 }
 
