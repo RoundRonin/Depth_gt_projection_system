@@ -48,14 +48,18 @@ d:
 
 .phony: go_i
 go_i: 
-	./ImageProcessing_Release ./images/modified_image.png --verbose -lt -Z 10 -A 1000 -B 15 -D 30 -M 20
+	./ImageProcessing_Release ./images/modified_image.png --verbose -lt -Z 10 -A 16000 -B 15 -D 30 -M 20
 
 .phony: go_svo
 go_svo: 
-	./ImageProcessing_Release /media/jetson42/E/svo/HD1080_SN39946427_12-05-25.svo --verbose -lt -Z 10 -A 1000 -B 15 -D 30 -M 20
+	./ImageProcessing_Release /media/jetson42/E/svo/HD1080_SN39946427_12-05-25.svo --verbose -lt -Z 10 -A 16000 -B 15 -D 30 -M 20
 
 .phony: clean 
 clean:
 	rm -rf ./m_build
 	rm ./ImageProcessing_Debug
 	rm ./ImageProcessing_Release
+
+.phony: rm_res
+rm_res:
+	cd Result && rm *

@@ -1,5 +1,5 @@
-#include "object_recognition.hpp"
-#include "utils.hpp"
+#include "../headers/object_recognition.hpp"
+#include "../headers/utils.hpp"
 
 using namespace std;
 using namespace cv;
@@ -8,6 +8,7 @@ namespace fs = std::filesystem;
 Image::Image(string path, string output_location, const Logger &log,
              const Printer &printer)
     : m_log(log), m_printer(printer) {
+    // TODO check if image exists
     image = imread(path, IMREAD_GRAYSCALE);
     CV_Assert(image.depth() == CV_8U);
     if (image.empty())

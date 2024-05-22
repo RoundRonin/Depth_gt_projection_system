@@ -33,32 +33,11 @@ void print(string msg_prefix, ERROR_CODE err_code, string msg_suffix) {
     cout << endl;
 }
 
-template <typename T> struct Parameter {
-    T value;
-    option opt;
-    string help;
-
-    , , ,
-} struct Data {
-    int height = 10;
-    double pressure = 7.8;
-    bool isProtected = true;
-
-    uchar maxDistance = 7;
-    uchar level = 3;
-};
-
-void main() {
-    Data data;
-
-    func1(data.height, data.pressure);
-    func2(data.maxDistance, data.level);
-    ...
-
-        for (auto param : data) {
-        param = updateValueSecurely(param);
-    }
-}
+// template <typename T> struct Parameter {
+//     T value;
+//     option opt;
+//     string help;
+// };
 
 struct spatial_data {
     vector<sl::float4> point_cloud_values;
@@ -107,8 +86,8 @@ class CameraManager {
         init_parameters.depth_maximum_distance = max_distance;
     }
 
-    ERROR_CODE setParams(int threshold = 10, int texture_threshold = 100,
-                         bool fill_mode = false) {
+    void setParams(int threshold = 10, int texture_threshold = 100,
+                   bool fill_mode = false) {
         runParameters.confidence_threshold = threshold;
         runParameters.texture_confidence_threshold = texture_threshold;
         runParameters.enable_fill_mode = fill_mode;

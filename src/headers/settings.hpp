@@ -25,6 +25,10 @@ class Settings {
     };
 
     template <typename T> struct Parameter {
+      private:
+        int len = 30;
+
+      public:
         T value;
         option opt;
         string help;
@@ -34,7 +38,10 @@ class Settings {
         Parameter(T value, option option, string description)
             : value(value), opt(option) {
 
-            help = std::format("-{} --{} {:<30}{}", option.val, option.name, "",
+            // help = std::format("-{} --{} {:<30}{}", string{option.val},
+            //                    option.name, "", description);
+            string str = std::format("-{} --{}", char(option.val), option.name);
+            help = std::format("{}{}{}", str, string(len - str.length(), ' '),
                                description);
         };
 
@@ -42,8 +49,14 @@ class Settings {
                   string value_template)
             : value(value), opt(option) {
 
-            help = std::format("-{} --{}={} {:<30}{}", option.val, option.name,
-                               value_template, "", description);
+            string str = std::format("-{} --{}={}", char(option.val),
+                                     option.name, value_template);
+            help = std::format("{}{}{}", str, string(len - str.length(), ' '),
+                               description);
+            // help =
+            //     std::format("-{} --{}={} {:<}{}", char(option.val),
+            //     option.name,
+            //                 value_template, " ", help.length(), description);
         }
 
         descriptor getDescriptors() { return {opt, help}; }
@@ -64,7 +77,7 @@ class Settings {
     int debug_level = 0;
     string FilePath;
     Parameter<bool> save_logs{
-        false, {"help", no_argument, 0, 'h'}, "toggle save logs"};
+        false, {"save", no_argument, 0, 'l'}, "toggle save logs"};
     Parameter<bool> measure_time{
         false, {"time", no_argument, 0, 't'}, "toggle time measurement"};
     Parameter<string> outputLocation{"./Result/",
@@ -104,7 +117,7 @@ class Settings {
         {"threshold-texture", required_argument, 0, 'X'},
         "define texture theshold [0 100]"};
     Parameter<int> depth_mode{3,
-                              {"", required_argument, 0, 'U'},
+                              {"depthmode", required_argument, 0, 'U'},
                               "define depth mode: 0-6: NONE, PERFORMANCE, "
                               "QUALITY, ULTRA, NEURAL, NEURAL+, LAST "};
     Parameter<int> camera_distance{
@@ -154,6 +167,8 @@ class Settings {
         int c;
 
         while (1) {
+
+            // TODO fix debug_level change not working
             std::vector<option> long_options{
                 {"verbose", no_argument, &debug_level, 2},
                 {"brief", no_argument, &debug_level, 1},
@@ -250,7 +265,7 @@ class Settings {
             }
         }
 
-        debug_level = verbose_flag;
+        // debug_level = verbose_flag;
     }
 
   private:
@@ -259,4 +274,24 @@ class Settings {
         std::cout << "   $ " << m_argv[0] << "<DEPTH_MAP|SVO> <flags>"
                   << std::endl;
         std::cout << "** Depth map file or .SVO file is mandatory for the "
-               
+                     "application **"
+                  << std::endl;
+    }
+    void printHelp() {
+
+        printUsage();
+        std::cout << std::endl;
+        std::cout << "-h, --help                    show help" << std::endl;
+
+        for (auto discriptor : m_descriptors) {
+            std::cout << discriptor.help << std::endl;
+        }
+
+        std::cout << std::endl;
+        std::cout << "To set debug level use [--verbose|--brief|--production]\n"
+                     "for levels 2, 1, 0"
+                  << std::endl;
+    }
+};
+
+#endif

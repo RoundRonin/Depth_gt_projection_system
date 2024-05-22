@@ -19,6 +19,38 @@ using namespace dm;
 // TODO
 // TODO
 
+// TODO free cam on process kill
+
+void process() {}
+
+void createVideo() {
+    // VideoWriter video(outputLocation + "color_gradient.avi",
+    //                   VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, size);
+
+    // if (!video.isOpened()) {
+    //     return -1;
+    // }
+
+    // vector<cv::Mat> masks = image.mask_mats;
+    // Templates templates(image.image);
+    // for (int i = 0; i < 10 * 60; i++) { // 10 seconds at 60 fps
+
+    //     vector<cv::Mat> results;
+    //     results.push_back(templates.chessBoard(i, masks.at(1), 2, 1));
+    //     results.push_back(templates.chessBoard(i, masks.at(2), 1, 3));
+    //     results.push_back(templates.gradient(i, masks.at(3), 1));
+    //     results.push_back(templates.gradient(i, masks.at(4), 5));
+
+    //     cv::add(results.at(0), results.at(1), results.at(1));
+    //     cv::add(results.at(1), results.at(2), results.at(2));
+    //     cv::add(results.at(2), results.at(3), results.at(3));
+
+    //     video.write(results.at(3));
+    // }
+
+    // video.release();
+}
+
 int main(int argc, char **argv) {
 
     Settings settings;
@@ -45,6 +77,7 @@ int main(int argc, char **argv) {
 
     if (settings.from_SVO) {
         CameraManager camMan((settings.FilePath).c_str());
+
         camMan.setParams();
         camMan.openCamera();
 
@@ -52,10 +85,12 @@ int main(int argc, char **argv) {
         auto returned_state = camMan.grab();
         if (returned_state <= ERROR_CODE::SUCCESS) {
             auto result = camMan.imageProcessing();
+
             // cv::Mat img = slMat2cvMat(result.second);
-            result.second.write(
+            auto state = result.second.write(
                 (settings.outputLocation.value + "init_image.png").c_str());
             // image1 = Image(img, sets.outputLocation, logger);
+            std::cerr << state << std::endl;
             image = Image(settings.outputLocation.value + "init_image.png",
                           settings.outputLocation.value, logger, printer);
         }
@@ -82,31 +117,15 @@ int main(int argc, char **argv) {
     int height = image.image.rows;
     cv::Size size = image.image.size();
 
-    // VideoWriter video(outputLocation + "color_gradient.avi",
-    //                   VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, size);
-
-    // if (!video.isOpened()) {
-    //     return -1;
-    // }
-
-    // vector<cv::Mat> masks = image.mask_mats;
-    // Templates templates(image.image);
-    // for (int i = 0; i < 10 * 60; i++) { // 10 seconds at 60 fps
-
-    //     vector<cv::Mat> results;
-    //     results.push_back(templates.chessBoard(i, masks.at(1), 2, 1));
-    //     results.push_back(templates.chessBoard(i, masks.at(2), 1, 3));
-    //     results.push_back(templates.gradient(i, masks.at(3), 1));
-    //     results.push_back(templates.gradient(i, masks.at(4), 5));
-
-    //     cv::add(results.at(0), results.at(1), results.at(1));
-    //     cv::add(results.at(1), results.at(2), results.at(2));
-    //     cv::add(results.at(2), results.at(3), results.at(3));
-
-    //     video.write(results.at(3));
-    // }
-
-    // video.release();
+    // Main loop: show frame by frame generated video images (via templategen
+    // function)
+    //  But start with a calibration: show an image of checkerboard
+    //  Then read it with camera and understand an area of operations from that
+    //  -- get an image of the board and form all the neccacery spatial
+    //  transitions for a resulting vido to be projected (fish-eye, spatial
+    //  rotation)
+    //
+    //
 
     return EXIT_SUCCESS;
 }

@@ -1,4 +1,4 @@
-#include "templategen.hpp"
+#include "../headers/templategen.hpp"
 
 Templates::Templates(cv::Mat mask) {
     width = mask.cols;

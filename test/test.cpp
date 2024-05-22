@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "../src/object_recognition.hpp"
-#include "../src/utils.hpp"
+#include "../src/headers/object_recognition.hpp"
+#include "../src/headers/utils.hpp"
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/matx.hpp>
 #include <opencv2/core/types.hpp>
