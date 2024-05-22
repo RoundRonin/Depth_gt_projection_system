@@ -1,4 +1,7 @@
 
+#include <csignal>
+// #include <iostream>
+
 #include "../include/sl_utils.hpp"
 #include "./headers/converter.hpp"
 #include "./headers/settings.hpp"
@@ -22,55 +25,42 @@ using namespace dm;
 // TODO free cam on process kill
 
 // TODO use zed.setRegionOfInterest to discard all area beyond the projector
-void process(Logger &logger, CameraManager &camMan, Settings &settings,
-             ImageProcessor &image) {
-    logger.start();
-    auto returned_state = camMan.grab();
-    if (returned_state <= ERROR_CODE::SUCCESS) {
-        auto result = camMan.imageProcessing();
 
-        // cv::Mat img = slMat2cvMat(result.second);
-        auto state = result.second.write(
-            (settings.outputLocation.value + "init_image.png").c_str());
-        // image1 = ImageProcessor(img, sets.outputLocation, logger);
-        std::cerr << state << std::endl;
-        image.getImage(settings.outputLocation.value + "init_image.png");
-    } else {
-        throw runtime_error("Coudn't grab a frame");
+struct InteractiveState {
+    char key;
+    bool pause = false;
+    bool next = false;
+    int idx = 0;
+
+    void printHelp() {
+        cout << " Press 'q' to exit..." << endl;
+        cout << " Press 'p' to exit..." << endl;
     }
-    logger.stop("Zed grab");
-    logger.print();
-}
 
-void createVideo() {
-    // VideoWriter video(outputLocation + "color_gradient.avi",
-    //                   VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, size);
+    void pauseApp() {
+        if (key == 'p') pause = !pause;
+        while (pause && !next) {
+            key = cv::waitKey(0);
+            if (key == 'p') pause = !pause;
+            if (key == ' ' || key == 'q') next = true;
+        }
+    }
+};
 
-    // if (!video.isOpened()) {
-    //     return -1;
-    // }
+void signalHandler(int signalNumber);
 
-    // vector<cv::Mat> masks = image.mask_mats;
-    // Templates templates(image.image);
-    // for (int i = 0; i < 10 * 60; i++) { // 10 seconds at 60 fps
+void process(Logger &logger, CameraManager &camMan, Settings &settings,
+             ImageProcessor &image);
 
-    //     vector<cv::Mat> results;
-    //     results.push_back(templates.chessBoard(i, masks.at(1), 2, 1));
-    //     results.push_back(templates.chessBoard(i, masks.at(2), 1, 3));
-    //     results.push_back(templates.gradient(i, masks.at(3), 1));
-    //     results.push_back(templates.gradient(i, masks.at(4), 5));
+void applyTemplates();
 
-    //     cv::add(results.at(0), results.at(1), results.at(1));
-    //     cv::add(results.at(1), results.at(2), results.at(2));
-    //     cv::add(results.at(2), results.at(3), results.at(3));
-
-    //     video.write(results.at(3));
-    // }
-
-    // video.release();
-}
+void createVideo();
 
 int main(int argc, char **argv) {
+    // TODO add more signals, work on handling
+    signal(SIGTERM, signalHandler);
+    signal(SIGHUP, signalHandler);
+
     Settings settings;
     Printer printer;
 
@@ -121,18 +111,95 @@ int main(int argc, char **argv) {
         camMan.setParams(params);
         camMan.openCamera();
 
-        process(logger, camMan, settings, image);
+        //
+        //
+        // Main loop: show frame by frame generated video images (via
+        // templategen function)
+        //  But start with a calibration: show an image of checkerboard
+        //  Then read it with camera and understand an area of operations from
+        //  that
+        //  -- get an image of the board and form all the neccacery spatial
+        //  transitions for a resulting vido to be projected (fish-eye, spatial
+        //  rotation)
+        //
+        //
+        InteractiveState state;
+        state.printHelp();
+        string window_name = "Projection";
+        cv::namedWindow(window_name, cv::WindowFlags::WINDOW_NORMAL);
+        // cv::namedWindow(window_name, cv::WindowFlags::WINDOW_NORMAL);
+        // cv::setWindowProperty(window_name,
+        //                       cv::WindowPropertyFlags::WND_PROP_FULLSCREEN,
+        //                       cv::WindowFlags::WINDOW_FULLSCREEN);
+        Templates templates(image.image);
+        while (state.key != 'q') {
+            // ? multithreaded? One video creation, one showing and one server
+            state.next = 0;
+            state.idx = 0;
+
+            process(logger, camMan, settings, image);
+
+            vector<cv::Mat> masks = image.mask_mats;
+            // vector<cv::Mat> results = *new vector<cv::Mat>;
+            vector<cv::Mat> results;
+
+            try {
+                for (auto mask : masks) {
+                    results.push_back(templates.solidColor(
+                        mask,
+                        {(double)(240 - state.idx), (double)(220 + (state.idx)),
+                         (double)(210 + (state.idx * 3))}));
+                    state.idx++;
+                }
+
+                for (int i = 0; i < results.size() - 1; i++) {
+                    cv::add(results.at(i), results.at(i + 1),
+                            results.at(i + 1));
+                }
+
+                // cv::imshow(window_name, image.m_objects);
+                cv::imshow(window_name, results.at(results.size() - 1));
+            } catch (const std::exception &e) {
+                std::cerr << e.what() << '\n';
+            }
+
+            state.key = cv::waitKey(10);
+
+            // TODO color coding for objects via tamplates
+
+            state.pauseApp();
+            // ! calibration
+        }
+
+        camMan.~CameraManager();
     }
 
-    // TODO romeve this workaround. It currently saves an image
-    // TODO and then reads it.
-    // TODO it seems, slMat2cvMat has some kind of a bug
-    // image.write(settings.outputLocation.value + "init_image.png");
+    return EXIT_SUCCESS;
+}
 
-    // TODO mainloop
-    // ? multithreaded? One for video creation, one for showing and one for the
-    // server? while (1) {
-    // }
+void process(Logger &logger, CameraManager &camMan, Settings &settings,
+             ImageProcessor &image) {
+    logger.start();
+    auto returned_state = camMan.grab();
+    if (returned_state <= ERROR_CODE::SUCCESS) {
+        auto result = camMan.imageProcessing();
+
+        // TODO romeve this workaround. It currently saves an image
+        // TODO and then reads it.
+        // TODO it seems, slMat2cvMat has some kind of a bug
+        // image.write(settings.outputLocation.value + "init_image.png");
+
+        // cv::Mat img = slMat2cvMat(result.second);
+        auto state = result.second.write(
+            (settings.outputLocation.value + "init_image.png").c_str());
+        // image1 = ImageProcessor(img, sets.outputLocation, logger);
+        std::cerr << state << std::endl;
+        image.getImage(settings.outputLocation.value + "init_image.png");
+    } else {
+        throw runtime_error("Coudn't grab a frame");
+    }
+    logger.stop("Zed grab");
+    logger.print();
 
     // TODO 5544332244
     image.dilate(5, 5);
@@ -142,21 +209,42 @@ int main(int argc, char **argv) {
     image.findObjects(settings.zlimit, settings.minDistance,
                       settings.medium_limit, settings.minArea,
                       settings.maxObjects, settings.recurse);
+}
 
-    int width = image.image.cols;
-    int height = image.image.rows;
-    cv::Size size = image.image.size();
+void applyTemplates() {}
 
-    // Main loop: show frame by frame generated video images (via
-    // templategen function)
-    //  But start with a calibration: show an image of checkerboard
-    //  Then read it with camera and understand an area of operations from
-    //  that
-    //  -- get an image of the board and form all the neccacery spatial
-    //  transitions for a resulting vido to be projected (fish-eye, spatial
-    //  rotation)
-    //
-    //
+void createVideo() {
+    // VideoWriter video(outputLocation + "color_gradient.avi",
+    //                   VideoWriter::fourcc('M', 'J', 'P', 'G'), 60, size);
 
-    return EXIT_SUCCESS;
+    // if (!video.isOpened()) {
+    //     return -1;
+    // }
+
+    // vector<cv::Mat> masks = image.mask_mats;
+    // Templates templates(image.image);
+    // for (int i = 0; i < 10 * 60; i++) { // 10 seconds at 60 fps
+
+    //     vector<cv::Mat> results;
+    //     results.push_back(templates.chessBoard(i, masks.at(1), 2, 1));
+    //     results.push_back(templates.chessBoard(i, masks.at(2), 1, 3));
+    //     results.push_back(templates.gradient(i, masks.at(3), 1));
+    //     results.push_back(templates.gradient(i, masks.at(4), 5));
+
+    //     cv::add(results.at(0), results.at(1), results.at(1));
+    //     cv::add(results.at(1), results.at(2), results.at(2));
+    //     cv::add(results.at(2), results.at(3), results.at(3));
+
+    //     video.write(results.at(3));
+    // }
+
+    // video.release();
+}
+
+void signalHandler(int signalNumber) {
+    if (signalNumber == SIGTERM || signalNumber == SIGHUP) {
+        std::cout << "Recieved interupt signal: " << signalNumber
+                  << "\nExiting..." << std::endl;
+        exit(signalNumber);
+    }
 }

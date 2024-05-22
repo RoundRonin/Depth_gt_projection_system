@@ -10,7 +10,6 @@
 
 // TODO restructure so that there would be initparams analog
 class ImageProcessor {
-    cv::Mat m_objects;
     std::string m_out_path;
     uchar m_zlimit;
     uchar m_min_distance;
@@ -19,6 +18,9 @@ class ImageProcessor {
     Printer m_printer;
 
    public:
+    // TODO temp
+    cv::Mat m_objects;
+
     cv::Mat image;
     std::vector<cv::Mat> mask_mats;
 

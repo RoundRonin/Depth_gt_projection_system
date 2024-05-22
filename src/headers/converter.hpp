@@ -1,8 +1,9 @@
 
-#include "opencv2/opencv.hpp"
 #include <fstream>
 #include <sl/Camera.hpp>
 #include <vector>
+
+#include "opencv2/opencv.hpp"
 // #include "/mnt/jetson_root/usr/local/zed"
 using namespace cv;
 using namespace sl;
@@ -28,8 +29,7 @@ void print(string msg_prefix, ERROR_CODE err_code, string msg_suffix) {
         cout << " | " << toString(err_code) << " : ";
         cout << toVerbose(err_code);
     }
-    if (!msg_suffix.empty())
-        cout << " " << msg_suffix;
+    if (!msg_suffix.empty()) cout << " " << msg_suffix;
     cout << endl;
 }
 
@@ -52,7 +52,7 @@ struct cam_matrix {
 };
 
 class CameraManager {
-  private:
+   private:
     Camera zed;
     InitParameters init_parameters;
 
@@ -69,7 +69,7 @@ class CameraManager {
 
     int svo_position;
 
-  public:
+   public:
     struct Params {
         sl::DEPTH_MODE depth_mode = sl::DEPTH_MODE::ULTRA;
         int max_distance = 20;
@@ -78,7 +78,7 @@ class CameraManager {
         bool fill_mode = false;
     };
 
-  public:
+   public:
     CameraManager() {}
 
     // CameraManager(sl::String filepath,
@@ -101,7 +101,7 @@ class CameraManager {
         init_parameters.depth_mode = parameters.depth_mode;
         init_parameters.coordinate_system =
             COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
-        init_parameters.sdk_verbose = 1; // TODO cli?
+        init_parameters.sdk_verbose = 1;  // TODO cli?
 
         init_parameters.camera_resolution = RESOLUTION::AUTO;
         init_parameters.coordinate_units = UNIT::METER;
@@ -136,7 +136,7 @@ class CameraManager {
         init_parameters.input.setFromSVOFile(filepath);
 
         int nb_frames = zed.getSVONumberOfFrames();
-        svo_position = (int)nb_frames / 2; // TODO cli??
+        svo_position = (int)nb_frames / 2;  // TODO cli??
 
         print("[Info] SVO contains " + to_string(nb_frames) + " frames",
               ERROR_CODE::SUCCESS, "");
@@ -188,7 +188,7 @@ class CameraManager {
 
     ~CameraManager() { zed.close(); }
 
-  private:
+   private:
     sl::Mat formPointCloud(sl::Mat depth_map, sl::Mat image, cam_matrix cam) {
         // TODO add coordinate system options
         // TODO check if image is present, if cam is present and provide
@@ -255,7 +255,6 @@ class CameraManager {
     }
 
     spatial_data formMesh(sl::Mat pointcloud) {
-
         vector<sl::float4> point_cloud_values;
         vector<array<int, 3>> triangles;
 
@@ -279,17 +278,17 @@ class CameraManager {
         // Define all point-triangle references (both directions -- performance)
         for (int row = 0; row < height - 1; row++) {
             for (int column = 0; column < width - 1; column++) {
-
                 pointcloud.getValue(column, row,
-                                    &potential_vertecies[0]); // v0 v0\  /v1
+                                    &potential_vertecies[0]);  // v0 v0\  /v1
                 pointcloud.getValue(
                     column + 1, row,
-                    &potential_vertecies[1]); // v1    0   0  1  2  .  .  . n-1
+                    &potential_vertecies[1]);  // v1    0   0  1  2  .  .  . n-1
                 pointcloud.getValue(
                     column, row + 1,
-                    &potential_vertecies[2]); // v2    1   n n+1 .  .  .  . n-2
-                pointcloud.getValue(column + 1, row + 1,
-                                    &potential_vertecies[3]); // v3    . v2/ \v3
+                    &potential_vertecies[2]);  // v2    1   n n+1 .  .  .  . n-2
+                pointcloud.getValue(
+                    column + 1, row + 1,
+                    &potential_vertecies[3]);  // v3    . v2/ \v3
 
                 int v0 = row * width + column;
                 int v1 = row * width + column + 1;
@@ -388,8 +387,7 @@ class CameraManager {
         int vertex_amount = data.point_cloud_values.size();
         int faces_amount = data.triangles.size();
 
-        if (vertex_amount == 0)
-            return ERROR_CODE::FAILURE;
+        if (vertex_amount == 0) return ERROR_CODE::FAILURE;
 
         file << "ply\n";
         file << "format ascii 1.0\n";
@@ -435,4 +433,4 @@ class CameraManager {
     }
 };
 
-}; // namespace dm
+};  // namespace dm

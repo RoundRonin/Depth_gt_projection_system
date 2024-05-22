@@ -6,8 +6,7 @@
 #include "opencv2/opencv.hpp"
 
 class Templates {
-
-    int chessboardSize = 20; // Size of each square in the chessboard
+    int chessboardSize = 20;  // Size of each square in the chessboard
     int filler = 2 * chessboardSize;
     // int speedX = 1;
     // int speedY = 1;
@@ -15,12 +14,14 @@ class Templates {
     int width = 1280;
     int height = 720;
 
-  public:
+   public:
     Templates(cv::Mat mask);
 
     cv::Mat gradient(int iter, cv::Mat mask, int a);
 
     cv::Mat chessBoard(int iter, cv::Mat mask, int speedX = 1, int speedY = 1);
+
+    cv::Mat solidColor(cv::Mat mask, cv::Scalar color);
 };
 
 #endif
