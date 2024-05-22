@@ -12,8 +12,7 @@
 #include <vector>
 
 class Printer {
-
-  public:
+   public:
     enum ERROR {
         UNDEFINED,
         SUCCESS,
@@ -26,8 +25,10 @@ class Printer {
         FLAGS_FAILURE,
     };
 
-  private:
-    char m_debug_level;
+    enum DEBUG_LVL { PRODUCTION, BRIEF, VERBOSE };
+
+   private:
+    DEBUG_LVL m_debug_level;
 
     struct LineWrapper {
         bool IsNamed = false;
@@ -35,6 +36,7 @@ class Printer {
     };
 
     //! Order matters (inline with enum ERROR)
+    // TODO use map
     std::vector<LineWrapper> m_error_messages = {
         {LineWrapper()},
         {true, {"[INFO] ", " sucessful", ""}},
@@ -49,24 +51,27 @@ class Printer {
 
     struct message {
         ERROR type = ERROR::UNDEFINED;
-        std::vector<int> values = {-1, -1}; // TODO error value
+        std::vector<int> values = {-1, -1};  // TODO error value
         std::string name = "";
+        DEBUG_LVL importance = VERBOSE;
 
         auto operator<=>(const message &) const = default;
     };
 
     std::pair<int, message> m_last_message_counted = {0, message()};
 
-  public:
-    Printer() { m_debug_level = 4; }
-    Printer(int debug_level) { setDebugLevel(debug_level); }
+   public:
+    Printer() { m_debug_level = DEBUG_LVL::VERBOSE; }
 
-    void setDebugLevel(int debug_level);
+    Printer(DEBUG_LVL debug_level) { setDebugLevel(debug_level); }
+
+    void setDebugLevel(DEBUG_LVL debug_level);
     void log_message(message msg);
     void log_message(std::exception exception);
 };
 
 class Logger {
+    // TODO use debug_lvl from printer
     std::stack<std::chrono::time_point<std::chrono::high_resolution_clock>>
         m_timer_queue;
     std::vector<std::pair<std::string, std::chrono::microseconds>>
@@ -79,13 +84,13 @@ class Logger {
     bool m_time_toggle;
     char m_debug_level;
 
-  public:
+   public:
     enum time { second = 1, ms = 1000, mcs = 1000000 };
 
     std::string m_log_name;
 
-  private:
-  public:
+   private:
+   public:
     // Logger()
     //     : m_log_name("log"), m_version(0), m_batch(0), m_save_toggle(false),
     //       m_time_toggle(false), m_debug_level(0) {}
@@ -97,9 +102,12 @@ class Logger {
     Logger(std::string log_name = "log", int version = 0, int batch = 0,
            bool save = false, bool measure_time = false,
            char debug_level = false)
-        : m_log_name(log_name), m_version(version), m_batch(batch),
-          m_save_toggle(save), m_time_toggle(measure_time),
-          m_debug_level(debug_level) {} // TODO add checks for debug level
+        : m_log_name(log_name),
+          m_version(version),
+          m_batch(batch),
+          m_save_toggle(save),
+          m_time_toggle(measure_time),
+          m_debug_level(debug_level) {}  // TODO add checks for debug level
 
     Printer::ERROR start();
     Printer::ERROR stop(std::string timer_name = "default timer");
@@ -109,10 +117,10 @@ class Logger {
 
     // Accepted message structure: {Logger::ERROR, {val1, val2}, "name"}
 
-  private:
+   private:
     std::string get_formatted_local_time();
 
     void save_to_file(std::string log_lines);
 };
 
-#endif // UTILS_HPP
+#endif  // UTILS_HPP

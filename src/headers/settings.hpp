@@ -1,21 +1,20 @@
 #ifndef SETTINGS_HPP
 #define SETTINGS_HPP
 
-#include "opencv2/opencv.hpp"
+#include <getopt.h>
+
 #include <format>
 #include <stdexcept>
 #include <string>
 #include <tuple>
 #include <vector>
 
-#include <getopt.h>
-
+#include "opencv2/opencv.hpp"
 #include "utils.hpp"
 
 using namespace std;
 
 class Settings {
-
     int m_argc;
     char **m_argv;
 
@@ -24,11 +23,12 @@ class Settings {
         string help;
     };
 
-    template <typename T> struct Parameter {
-      private:
+    template <typename T>
+    struct Parameter {
+       private:
         int len = 30;
 
-      public:
+       public:
         T value;
         option opt;
         string help;
@@ -37,7 +37,6 @@ class Settings {
 
         Parameter(T value, option option, string description)
             : value(value), opt(option) {
-
             // help = std::format("-{} --{} {:<30}{}", string{option.val},
             //                    option.name, "", description);
             string str = std::format("-{} --{}", char(option.val), option.name);
@@ -48,7 +47,6 @@ class Settings {
         Parameter(T value, option option, string description,
                   string value_template)
             : value(value), opt(option) {
-
             string str = std::format("-{} --{}={}", char(option.val),
                                      option.name, value_template);
             help = std::format("{}{}{}", str, string(len - str.length(), ' '),
@@ -62,6 +60,7 @@ class Settings {
         descriptor getDescriptors() { return {opt, help}; }
 
         operator T() const { return value; }
+
         Parameter operator=(T val) {
             value = val;
             return *this;
@@ -71,9 +70,11 @@ class Settings {
     std::vector<descriptor> m_descriptors;
     struct option *m_long_options;
 
-  public:
+   public:
+    enum SOURCE_TYPE { IMAGE, SVO, STREAM };
+
     // General params
-    bool from_SVO = false;
+    SOURCE_TYPE type = SOURCE_TYPE::STREAM;
     int debug_level = 0;
     string FilePath;
     Parameter<bool> save_logs{
@@ -106,9 +107,8 @@ class Settings {
 
     // TODO size constraints
     // Camara params
-    Parameter<int> fill_mode{10,
-                             {"fillmode", required_argument, 0, 'f'},
-                             "define depth map theshold [0 100]"};
+    Parameter<bool> fill_mode{
+        false, {"fillmode", required_argument, 0, 'f'}, "toggle fill mode"};
     Parameter<int> threshold{50,
                              {"threshold", required_argument, 0, 'T'},
                              "define depth map theshold [0 100]"};
@@ -143,21 +143,20 @@ class Settings {
     }
 
     Printer::ERROR Init(int argc, char **argv) {
-
         // TODO define if parse cli or file
-        if (argc <= 1)
-            return Printer::ERROR::ARGS_FAILURE;
 
-        if (argv[1][0] == '-')
-            return Printer::ERROR::ARGS_FAILURE;
+        m_argc = argc, m_argv = argv;
+        if (argc <= 1) return Printer::ERROR::ARGS_FAILURE;
+
+        if (argv[1][0] == '-') return Printer::ERROR::SUCCESS;
 
         string filename = argv[1];
-        if (filename.substr(filename.size() - 4) == ".svo") {
-            from_SVO = true;
-        }
+        if (filename.substr(filename.size() - 4) == ".svo")
+            type = SOURCE_TYPE::SVO;
+        else
+            type = SOURCE_TYPE::IMAGE;
 
         FilePath = filename;
-        m_argc = argc, m_argv = argv;
 
         return Printer::ERROR::SUCCESS;
     }
@@ -167,7 +166,6 @@ class Settings {
         int c;
 
         while (1) {
-
             // TODO fix debug_level change not working
             std::vector<option> long_options{
                 {"verbose", no_argument, &debug_level, 2},
@@ -186,89 +184,86 @@ class Settings {
             c = getopt_long(m_argc, m_argv, "hltrO:Z:D:M:A:B:", m_long_options,
                             &option_index);
 
-            if (c == -1)
-                break;
+            if (c == -1) break;
 
             switch (c) {
-            case 0:
-                /* If this option set a flag, do nothing else now. */
-                if (long_options[option_index].flag != 0)
+                case 0:
+                    /* If this option set a flag, do nothing else now. */
+                    if (long_options[option_index].flag != 0) break;
+                    printf("option %s", long_options[option_index].name);
+                    if (optarg) printf(" with arg %s", optarg);
+                    printf("\n");
                     break;
-                printf("option %s", long_options[option_index].name);
-                if (optarg)
-                    printf(" with arg %s", optarg);
-                printf("\n");
-                break;
 
-            case 'h': {
-                printHelp();
-                break;
-            }
-            case 'l': {
-                save_logs = true;
-                break;
-            }
-            case 't': {
-                measure_time = true;
-                break;
-            }
-            case 'r': {
-                recurse = true;
-                break;
-            }
-            case 'O': {
-                outputLocation = optarg;
-                break;
-            }
-            case 'Z': {
-                zlimit = atoi(optarg);
-                break;
-            }
-            case 'D': {
-                minDistance = atoi(optarg);
-                break;
-            }
-            case 'M': {
-                medium_limit = atoi(optarg);
-                break;
-            }
-            case 'A': {
-                minArea = atoi(optarg);
-                break;
-            }
-            case 'B': {
-                maxObjects = atoi(optarg);
-                break;
-            }
-            case 'f': {
-                fill_mode = true;
-                break;
-            }
-            case 'T': {
-                threshold = atoi(optarg);
-                break;
-            }
-            case 'X': {
-                maxObjects = atoi(optarg);
-                break;
-            }
-            case 'U': {
-                maxObjects = atoi(optarg);
-                break;
-            }
-            case 'C': {
-                maxObjects = atoi(optarg);
-                break;
-            }
-            default:
-                break;
+                case 'h': {
+                    printHelp();
+                    break;
+                }
+                case 'l': {
+                    save_logs = true;
+                    break;
+                }
+                case 't': {
+                    measure_time = true;
+                    break;
+                }
+                case 'r': {
+                    recurse = true;
+                    break;
+                }
+                case 'O': {
+                    outputLocation = optarg;
+                    break;
+                }
+                case 'Z': {
+                    zlimit = atoi(optarg);
+                    break;
+                }
+                case 'D': {
+                    minDistance = atoi(optarg);
+                    break;
+                }
+                case 'M': {
+                    medium_limit = atoi(optarg);
+                    break;
+                }
+                case 'A': {
+                    minArea = atoi(optarg);
+                    break;
+                }
+                case 'B': {
+                    maxObjects = atoi(optarg);
+                    break;
+                }
+                case 'f': {
+                    fill_mode = true;
+                    break;
+                }
+                case 'T': {
+                    threshold = atoi(optarg);
+                    break;
+                }
+                case 'X': {
+                    maxObjects = atoi(optarg);
+                    break;
+                }
+                case 'U': {
+                    maxObjects = atoi(optarg);
+                    break;
+                }
+                case 'C': {
+                    maxObjects = atoi(optarg);
+                    break;
+                }
+                default:
+                    break;
             }
         }
 
         // debug_level = verbose_flag;
     }
 
-  private:
+   private:
     void printUsage() {
         std::cout << "Usage:" << std::endl;
         std::cout << "   $ " << m_argv[0] << "<DEPTH_MAP|SVO> <flags>"
@@ -278,7 +273,6 @@ class Settings {
                   << std::endl;
     }
     void printHelp() {
-
         printUsage();
         std::cout << std::endl;
         std::cout << "-h, --help                    show help" << std::endl;

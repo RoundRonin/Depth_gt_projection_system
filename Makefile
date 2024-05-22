@@ -48,11 +48,15 @@ d:
 
 .phony: go_i
 go_i: 
-	./ImageProcessing_Release ./images/modified_image.png --verbose -lt -Z 10 -A 16000 -B 15 -D 30 -M 20
+	./ImageProcessing_Release ./images/modified_image.png --brief -lt -Z 10 -A 16000 -B 15 -D 30 -M 20
 
 .phony: go_svo
 go_svo: 
-	./ImageProcessing_Release /media/jetson42/E/svo/HD1080_SN39946427_12-05-25.svo --verbose -lt -Z 10 -A 16000 -B 15 -D 30 -M 20
+	./ImageProcessing_Release /media/jetson42/E/svo/HD1080_SN39946427_12-05-25.svo --brief -lt -Z 10 -A 16000 -B 15 -D 30 -M 20
+
+.phony: go_stream
+go_stream: 
+	./ImageProcessing_Release --brief -lt -Z 10 -A 16000 -B 15 -D 30 -M 20 -T 50 -U 1
 
 .phony: clean 
 clean:

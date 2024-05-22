@@ -21,7 +21,26 @@ using namespace dm;
 
 // TODO free cam on process kill
 
-void process() {}
+// TODO use zed.setRegionOfInterest to discard all area beyond the projector
+void process(Logger &logger, CameraManager &camMan, Settings &settings,
+             ImageProcessor &image) {
+    logger.start();
+    auto returned_state = camMan.grab();
+    if (returned_state <= ERROR_CODE::SUCCESS) {
+        auto result = camMan.imageProcessing();
+
+        // cv::Mat img = slMat2cvMat(result.second);
+        auto state = result.second.write(
+            (settings.outputLocation.value + "init_image.png").c_str());
+        // image1 = ImageProcessor(img, sets.outputLocation, logger);
+        std::cerr << state << std::endl;
+        image.getImage(settings.outputLocation.value + "init_image.png");
+    } else {
+        throw runtime_error("Coudn't grab a frame");
+    }
+    logger.stop("Zed grab");
+    logger.print();
+}
 
 void createVideo() {
     // VideoWriter video(outputLocation + "color_gradient.avi",
@@ -52,7 +71,6 @@ void createVideo() {
 }
 
 int main(int argc, char **argv) {
-
     Settings settings;
     Printer printer;
 
@@ -70,39 +88,51 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    printer.setDebugLevel(settings.debug_level);
+    printer.setDebugLevel(
+        static_cast<Printer::DEBUG_LVL>(settings.debug_level));
+
     Logger logger("log", 0, 0, settings.save_logs, settings.measure_time,
                   settings.debug_level);
-    Image image;
 
-    if (settings.from_SVO) {
-        CameraManager camMan((settings.FilePath).c_str());
+    ImageProcessor image(settings.outputLocation.value, logger, printer);
+    if (settings.type == Settings::SOURCE_TYPE::IMAGE) {
+        // image = ImageProcessor(settings.FilePath,
+        // settings.outputLocation.value,
+        //                        logger, printer);
+        image.getImage(settings.FilePath);
+    } else {
+        CameraManager camMan;
+        if (settings.type == Settings::SOURCE_TYPE::SVO)
+            // does it even work?
+            camMan.initSVO((settings.FilePath).c_str());
 
-        camMan.setParams();
+        int dm = settings.depth_mode;
+        CameraManager::Params params{
+            .depth_mode =
+                static_cast<sl::DEPTH_MODE>(settings.depth_mode.value),
+            .fill_mode = settings.fill_mode,
+            .max_distance = settings.camera_distance,
+            .texture_threshold = settings.texture_threshold,
+            .threshold = settings.threshold};
+
+        // CameraManager::Params params(
+        //         static_cast<sl::DEPTH_MODE>(settings.depth_mode.value),
+
+        camMan.setParams(params);
         camMan.openCamera();
 
-        camMan.initSVO();
-        auto returned_state = camMan.grab();
-        if (returned_state <= ERROR_CODE::SUCCESS) {
-            auto result = camMan.imageProcessing();
-
-            // cv::Mat img = slMat2cvMat(result.second);
-            auto state = result.second.write(
-                (settings.outputLocation.value + "init_image.png").c_str());
-            // image1 = Image(img, sets.outputLocation, logger);
-            std::cerr << state << std::endl;
-            image = Image(settings.outputLocation.value + "init_image.png",
-                          settings.outputLocation.value, logger, printer);
-        }
-    } else {
-        image = Image(settings.FilePath, settings.outputLocation.value, logger,
-                      printer);
+        process(logger, camMan, settings, image);
     }
 
     // TODO romeve this workaround. It currently saves an image
     // TODO and then reads it.
     // TODO it seems, slMat2cvMat has some kind of a bug
     // image.write(settings.outputLocation.value + "init_image.png");
+
+    // TODO mainloop
+    // ? multithreaded? One for video creation, one for showing and one for the
+    // server? while (1) {
+    // }
 
     // TODO 5544332244
     image.dilate(5, 5);
@@ -117,10 +147,11 @@ int main(int argc, char **argv) {
     int height = image.image.rows;
     cv::Size size = image.image.size();
 
-    // Main loop: show frame by frame generated video images (via templategen
-    // function)
+    // Main loop: show frame by frame generated video images (via
+    // templategen function)
     //  But start with a calibration: show an image of checkerboard
-    //  Then read it with camera and understand an area of operations from that
+    //  Then read it with camera and understand an area of operations from
+    //  that
     //  -- get an image of the board and form all the neccacery spatial
     //  transitions for a resulting vido to be projected (fish-eye, spatial
     //  rotation)

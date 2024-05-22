@@ -11,56 +11,50 @@
 #include <vector>
 
 void Printer::log_message(message msg) {
-    if (m_debug_level > 0) { // TODO deal with debug levels
+    auto [type, values, name, importance] = msg;
+    if (importance > m_debug_level) return;
 
-        auto [type, values, name] = msg;
-
-        bool repeated = false;
-        std::string line_end = "";
-        std::string line_start = "\n";
-        auto [counter, last_msg] = m_last_message_counted;
-        if (msg == last_msg) {
-            // std::cerr << "GELLP" << std::endl;
-            repeated = true;
-            m_last_message_counted.first++;
-            line_start = "\r";
-            line_end = " (" + std::to_string(counter + 1) + ")";
-        } else {
-            m_last_message_counted.second = msg;
-            m_last_message_counted.first = 0;
-        }
-
-        LineWrapper wrapped_log = m_error_messages.at(type);
-        bool isNamed = wrapped_log.IsNamed;
-        auto log_line = wrapped_log.line;
-        int shift = 0;
-        std::string print_line = "";
-        if (isNamed) {
-            shift = 1;
-            print_line += log_line.at(0) + name;
-        } else
-            print_line += log_line.at(0) + std::to_string(values.at(0));
-
-        for (int i = 1; i + 1 < log_line.size(); i++) {
-            print_line += log_line.at(i) + std::to_string(values.at(i - shift));
-        }
-        print_line += log_line.at(log_line.size() - 1);
-
-        std::cerr << line_start << print_line << line_end;
+    bool repeated = false;
+    // TODO flip these
+    std::string line_end = "";
+    std::string line_start = "\n";
+    auto [counter, last_msg] = m_last_message_counted;
+    if (msg == last_msg) {
+        // std::cerr << "GELLP" << std::endl;
+        repeated = true;
+        m_last_message_counted.first++;
+        line_start = "\r";
+        line_end = " (" + std::to_string(counter + 1) + ")";
+    } else {
+        m_last_message_counted.second = msg;
+        m_last_message_counted.first = 0;
     }
+
+    LineWrapper wrapped_log = m_error_messages.at(type);
+    bool isNamed = wrapped_log.IsNamed;
+    auto log_line = wrapped_log.line;
+    int shift = 0;
+    std::string print_line = "";
+    if (isNamed) {
+        shift = 1;
+        print_line += log_line.at(0) + name;
+    } else
+        print_line += log_line.at(0) + std::to_string(values.at(0));
+
+    for (int i = 1; i + 1 < log_line.size(); i++) {
+        print_line += log_line.at(i) + std::to_string(values.at(i - shift));
+    }
+    print_line += log_line.at(log_line.size() - 1);
+
+    std::cerr << line_start << print_line << line_end;
 }
 
 void Printer::log_message(std::exception exception) {
     std::cerr << "[ERROR] " << exception.what() << std::endl;
 }
 
-void Printer::setDebugLevel(int debug_level) {
-    if (debug_level < 0)
-        m_debug_level = 0;
-    else if (debug_level > 4)
-        m_debug_level = 4;
-    else
-        m_debug_level = debug_level;
+void Printer::setDebugLevel(DEBUG_LVL debug_level) {
+    m_debug_level = debug_level;
 }
 
 Printer::ERROR Logger::start() {
@@ -97,14 +91,14 @@ Printer::ERROR Logger::drop() {
 }
 
 Printer::ERROR Logger::print(time precision) {
-    if (m_time_toggle && m_debug_level == 2) {
+    if (m_time_toggle && m_debug_level >= 1) {
         for (auto duration_entry : m_duration_vector) {
             double time =
                 std::chrono::duration<double>(duration_entry.second).count() /
-                precision; // TODO rounding
+                precision;  // TODO rounding
 
             std::cerr << "[INFO] " << duration_entry.first << " = " << time
-                      << std::endl; // TODO rework to use log_message
+                      << std::endl;  // TODO rework to use log_message
         }
 
         return Printer::ERROR::SUCCESS;
@@ -114,12 +108,11 @@ Printer::ERROR Logger::print(time precision) {
 
 Printer::ERROR Logger::log(time precision) {
     if (m_time_toggle && m_save_toggle) {
-
         std::string timers = "";
         for (auto duration_entry : m_duration_vector) {
             double time =
                 std::chrono::duration<double>(duration_entry.second).count() /
-                precision; // TODO rounding
+                precision;  // TODO rounding
 
             timers = timers + "{\"name\": \"" + duration_entry.first +
                      "\", \"duration\": \"" + std::to_string(time) + "\"},";

@@ -70,27 +70,47 @@ class CameraManager {
     int svo_position;
 
   public:
-    CameraManager(sl::String filepath,
-                  DEPTH_MODE depth_mode = DEPTH_MODE::ULTRA,
-                  int max_distance = 20) {
-        // Create ZED objects
-        init_parameters.input.setFromSVOFile(filepath);
+    struct Params {
+        sl::DEPTH_MODE depth_mode = sl::DEPTH_MODE::ULTRA;
+        int max_distance = 20;
+        int threshold = 10;
+        int texture_threshold = 100;
+        bool fill_mode = false;
+    };
 
-        init_parameters.depth_mode = depth_mode;
+  public:
+    CameraManager() {}
+
+    // CameraManager(sl::String filepath,
+    //               DEPTH_MODE depth_mode = DEPTH_MODE::ULTRA,
+    //               int max_distance = 20) {
+    //     // Create ZED objects
+    //     init_parameters.input.setFromSVOFile(filepath);
+
+    //     init_parameters.depth_mode = depth_mode;
+    //     init_parameters.coordinate_system =
+    //         COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
+    //     init_parameters.sdk_verbose = 1; // TODO cli?
+
+    //     init_parameters.camera_resolution = RESOLUTION::AUTO;
+    //     init_parameters.coordinate_units = UNIT::METER;
+    //     init_parameters.depth_maximum_distance = max_distance;
+    // }
+
+    void setParams(Params parameters) {
+        init_parameters.depth_mode = parameters.depth_mode;
         init_parameters.coordinate_system =
             COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
         init_parameters.sdk_verbose = 1; // TODO cli?
 
         init_parameters.camera_resolution = RESOLUTION::AUTO;
         init_parameters.coordinate_units = UNIT::METER;
-        init_parameters.depth_maximum_distance = max_distance;
-    }
+        init_parameters.depth_maximum_distance = parameters.max_distance;
 
-    void setParams(int threshold = 10, int texture_threshold = 100,
-                   bool fill_mode = false) {
-        runParameters.confidence_threshold = threshold;
-        runParameters.texture_confidence_threshold = texture_threshold;
-        runParameters.enable_fill_mode = fill_mode;
+        runParameters.confidence_threshold = parameters.threshold;
+        runParameters.texture_confidence_threshold =
+            parameters.texture_threshold;
+        runParameters.enable_fill_mode = parameters.fill_mode;
     }
 
     ERROR_CODE openCamera() {
@@ -111,7 +131,10 @@ class CameraManager {
         return ERROR_CODE::SUCCESS;
     }
 
-    void initSVO() {
+    ERROR_CODE initSVO(sl::String filepath) {
+        // TODO check for files existance
+        init_parameters.input.setFromSVOFile(filepath);
+
         int nb_frames = zed.getSVONumberOfFrames();
         svo_position = (int)nb_frames / 2; // TODO cli??
 
@@ -122,6 +145,8 @@ class CameraManager {
               ERROR_CODE::SUCCESS, "");
 
         zed.setSVOPosition(svo_position);
+
+        return ERROR_CODE::SUCCESS;
     }
 
     ERROR_CODE grab() { return zed.grab(runParameters); }
