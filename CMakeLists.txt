@@ -1,5 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.11)
 PROJECT(ImageProcessing)
+set(ENV{MAKEFLAGS} "--no-print-directory")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -9,15 +10,30 @@ option(LINK_SHARED_ZED "Link with the ZED SDK shared executable" ON)
 message("COMPILER: ${CMAKE_CXX_COMPILER_ID}")
 message("VERSION: ${CMAKE_CXX_COMPILER_VERSION}")
 
-set (CMAKE_CXX_FLAGS "-lstdc++ -lm")
+# set (CMAKE_CXX_FLAGS "-lstdc++ -lm")
+set (CMAKE_EXPORT_COMPILE_COMMANDS 1)
+
+cmake_policy(SET CMP0153 OLD)
+cmake_policy(SET CMP0146 OLD)
+
+# add_compile_options(-fsanitize=address)
+# add_link_options(-fsanitize=address)
+
+# add_compile_options(-Wdeprecated-anon-enum-enum-conversion)
+# add_compile_options(-Wno-deprecated-enum-enum-conversion)
+# add_compile_options(-Wno-deprecated-anon-enum-enum-conversion)
+# add_compile_options(-Wno-c11-extensions)
+add_compile_options(-Wno-deprecated-enum-float-conversion)
+add_compile_options(-Wno-sign-compare)
+add_compile_options(-Wall -Wextra -Wpedantic ) # m_version(version)
 
 find_package(ZED 3 REQUIRED)
 find_package(OpenCV REQUIRED) # CV
 find_package(CUDA ${ZED_CUDA_VERSION} REQUIRED)
 
-include_directories(${CUDA_INCLUDE_DIRS})
-include_directories(${ZED_INCLUDE_DIRS})
-include_directories(${OpenCV_INCLUDE_DIRS}) # CV
+include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
+include_directories(SYSTEM ${ZED_INCLUDE_DIRS})
+include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS}) # CV
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # enable_testing()

@@ -151,7 +151,7 @@ class CameraManager {
 
     ERROR_CODE grab() { return zed.grab(runParameters); }
 
-    std::pair<sl::Mat, sl::Mat> imageProcessing(bool write = false) {
+    std::pair<sl::Mat &, sl::Mat &> imageProcessing(bool write = false) {
         zed.retrieveImage(image, VIEW::LEFT, MEM::CPU, resolution);
         zed.retrieveImage(image_depth, VIEW::DEPTH);
 
@@ -235,7 +235,7 @@ class CameraManager {
         // Discards non finite points
 
         vector<sl::float4> point_cloud_values;
-        int vertex_amount = 0;
+        // int vertex_amount = 0;
         sl::float4 value;
 
         int width = pointcloud.getWidth();
@@ -261,8 +261,8 @@ class CameraManager {
         sl::float4 potential_vertecies[4];
         sl::float4 point;
 
-        int vertex_amount = 0;
-        int faces_amount = 0;
+        // int vertex_amount = 0;
+        // int faces_amount = 0;
 
         int width = pointcloud.getWidth();
         int height = pointcloud.getHeight();

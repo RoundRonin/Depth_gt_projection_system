@@ -162,7 +162,6 @@ class Settings {
     }
 
     void Parse() {
-        static int verbose_flag;
         int c;
 
         while (1) {

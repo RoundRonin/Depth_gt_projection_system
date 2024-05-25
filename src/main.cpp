@@ -96,15 +96,13 @@ int main(int argc, char **argv) {
             // does it even work?
             camMan.initSVO((settings.FilePath).c_str());
 
-        int dm = settings.depth_mode;
         CameraManager::Params params{
             .depth_mode =
                 static_cast<sl::DEPTH_MODE>(settings.depth_mode.value),
-            .fill_mode = settings.fill_mode,
             .max_distance = settings.camera_distance,
+            .threshold = settings.threshold,
             .texture_threshold = settings.texture_threshold,
-            .threshold = settings.threshold};
-
+            .fill_mode = settings.fill_mode};
         // CameraManager::Params params(
         //         static_cast<sl::DEPTH_MODE>(settings.depth_mode.value),
 
@@ -127,21 +125,23 @@ int main(int argc, char **argv) {
         state.printHelp();
         string window_name = "Projection";
         cv::namedWindow(window_name, cv::WindowFlags::WINDOW_NORMAL);
-        // cv::namedWindow(window_name, cv::WindowFlags::WINDOW_NORMAL);
-        // cv::setWindowProperty(window_name,
-        //                       cv::WindowPropertyFlags::WND_PROP_FULLSCREEN,
-        //                       cv::WindowFlags::WINDOW_FULLSCREEN);
+        // cv::namedWindow(window_name, cv::WindowFlags::WINDOW_FULLSCREEN);
+        cv::setWindowProperty(window_name,
+                              cv::WindowPropertyFlags::WND_PROP_FULLSCREEN,
+                              cv::WindowFlags::WINDOW_FULLSCREEN);
         Templates templates(image.image);
+        vector<cv::Mat> &masks = image.mask_mats;
+        vector<cv::Mat> results;
         while (state.key != 'q') {
             // ? multithreaded? One video creation, one showing and one server
             state.next = 0;
             state.idx = 0;
 
-            process(logger, camMan, settings, image);
-
-            vector<cv::Mat> masks = image.mask_mats;
-            // vector<cv::Mat> results = *new vector<cv::Mat>;
+            vector<cv::Mat> &masks = image.mask_mats;
             vector<cv::Mat> results;
+            // masks = image.mask_mats;
+            // results.clear();
+            process(logger, camMan, settings, image);
 
             try {
                 for (auto mask : masks) {
@@ -162,7 +162,6 @@ int main(int argc, char **argv) {
             } catch (const std::exception &e) {
                 std::cerr << e.what() << '\n';
             }
-
             state.key = cv::waitKey(10);
 
             // TODO color coding for objects via tamplates
@@ -182,24 +181,22 @@ void process(Logger &logger, CameraManager &camMan, Settings &settings,
     logger.start();
     auto returned_state = camMan.grab();
     if (returned_state <= ERROR_CODE::SUCCESS) {
-        auto result = camMan.imageProcessing();
+        std::pair<sl::Mat &, sl::Mat &> result = camMan.imageProcessing();
 
         // TODO romeve this workaround. It currently saves an image
         // TODO and then reads it.
         // TODO it seems, slMat2cvMat has some kind of a bug
         // image.write(settings.outputLocation.value + "init_image.png");
 
-        // cv::Mat img = slMat2cvMat(result.second);
-        auto state = result.second.write(
-            (settings.outputLocation.value + "init_image.png").c_str());
-        // image1 = ImageProcessor(img, sets.outputLocation, logger);
-        std::cerr << state << std::endl;
-        image.getImage(settings.outputLocation.value + "init_image.png");
+        cv::Mat img = slMat2cvMat(result.second);
+        // auto state = result.second.write(
+        //     (settings.outputLocation.value + "init_image.png").c_str());
+        image.getImage(img);
+        // image.getImage(settings.outputLocation.value + "init_image.png");
     } else {
         throw runtime_error("Coudn't grab a frame");
     }
     logger.stop("Zed grab");
-    logger.print();
 
     // TODO 5544332244
     image.dilate(5, 5);

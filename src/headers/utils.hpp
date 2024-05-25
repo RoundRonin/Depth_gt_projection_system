@@ -102,18 +102,19 @@ class Logger {
     Logger(std::string log_name = "log", int version = 0, int batch = 0,
            bool save = false, bool measure_time = false,
            char debug_level = false)
-        : m_log_name(log_name),
-          m_version(version),
+        : m_version(version),
           m_batch(batch),
           m_save_toggle(save),
           m_time_toggle(measure_time),
-          m_debug_level(debug_level) {}  // TODO add checks for debug level
+          m_debug_level(debug_level),
+          m_log_name(log_name) {}  // TODO add checks for debug level
 
     Printer::ERROR start();
     Printer::ERROR stop(std::string timer_name = "default timer");
     Printer::ERROR drop();
     Printer::ERROR print(time precision = time::second);
     Printer::ERROR log(time precision = time::second);
+    Printer::ERROR flush();
 
     // Accepted message structure: {Logger::ERROR, {val1, val2}, "name"}
 

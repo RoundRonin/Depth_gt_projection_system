@@ -6,14 +6,14 @@ using namespace std;
 using namespace cv;
 namespace fs = std::filesystem;
 
-ImageProcessor::ImageProcessor(string output_location, const Logger &log,
-                               const Printer &printer)
+ImageProcessor::ImageProcessor(string output_location, Logger &log,
+                               Printer &printer)
     : m_log(log), m_printer(printer) {
     m_out_path = output_location;  // TODO add checks
 }
 
-ImageProcessor::ImageProcessor(string path, string output_location,
-                               const Logger &log, const Printer &printer)
+ImageProcessor::ImageProcessor(string path, string output_location, Logger &log,
+                               Printer &printer)
     : m_log(log), m_printer(printer) {
     // TODO check if image exists
     image = imread(path, IMREAD_GRAYSCALE);
@@ -25,7 +25,7 @@ ImageProcessor::ImageProcessor(string path, string output_location,
 }
 
 ImageProcessor::ImageProcessor(cv::Mat o_image, std::string output_location,
-                               const Logger &log, const Printer &printer)
+                               Logger &log, Printer &printer)
     : m_log(log), m_printer(printer) {
     image = o_image;
     CV_Assert(image.depth() == CV_8U);
@@ -38,6 +38,15 @@ ImageProcessor::ImageProcessor(cv::Mat o_image, std::string output_location,
 void ImageProcessor::getImage(string path) {
     // TODO add checks, return error
     image = imread(path, IMREAD_GRAYSCALE);
+    CV_Assert(image.depth() == CV_8U);
+    if (image.empty()) return;
+
+    m_objects = cv::Mat(image.rows, image.cols, CV_8U, double(0));
+}
+
+void ImageProcessor::getImage(cv::Mat &image) {
+    // TODO add checks, return error
+    image = image;
     CV_Assert(image.depth() == CV_8U);
     if (image.empty()) return;
 
@@ -85,7 +94,7 @@ void ImageProcessor::findObjects(uchar zlimit, uchar minDistance,
     auto w_limit = Printer::ERROR::WARN_OBJECT_LIMIT;
 
     auto p = Printer::DEBUG_LVL::PRODUCTION;
-    auto b = Printer::DEBUG_LVL::BRIEF;
+    // auto b = Printer::DEBUG_LVL::BRIEF;
 
     m_printer.log_message({i_use, {(int)zlimit}, "depth difference limit", p});
     m_printer.log_message({i_use, {(int)minDistance}, "min distance", p});
@@ -159,6 +168,7 @@ void ImageProcessor::findObjects(uchar zlimit, uchar minDistance,
     m_log.stop("overall");
     m_log.print();
     m_log.log();
+    m_log.flush();
 
     for (int i = 0; i < mask_mats.size(); i++) {
         imwrite(m_out_path + "mask " + to_string(i) + " .png", mask_mats.at(i));

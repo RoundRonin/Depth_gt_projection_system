@@ -135,6 +135,12 @@ Printer::ERROR Logger::log(time precision) {
     return Printer::ERROR::ERROR_TURNED_OFF;
 }
 
+// TODO make more safe by making sure elemets are erased (if pointers)
+Printer::ERROR Logger::flush() {
+    m_duration_vector.clear();
+    return Printer::ERROR::SUCCESS;
+}
+
 std::string Logger::get_formatted_local_time() {
     std::time_t now =
         std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());

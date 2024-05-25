@@ -14,8 +14,8 @@ class ImageProcessor {
     uchar m_zlimit;
     uchar m_min_distance;
     uchar m_medium_limit;
-    Logger m_log;
-    Printer m_printer;
+    Logger &m_log;
+    Printer &m_printer;
 
    public:
     // TODO temp
@@ -30,23 +30,18 @@ class ImageProcessor {
     };
 
    public:
-    ImageProcessor() {
-        // TODO set empty image and output location
-        m_log = Logger();
-    };
-
-    ImageProcessor(std::string output_location, const Logger &log,
-                   const Printer &printer);
+    ImageProcessor(std::string output_location, Logger &log, Printer &printer);
 
     // TODO check if image on the path exists, throw exception if it doesn't
-    ImageProcessor(std::string path, std::string output_location,
-                   const Logger &log, const Printer &printer);
+    ImageProcessor(std::string path, std::string output_location, Logger &log,
+                   Printer &printer);
 
-    ImageProcessor(cv::Mat image, std::string output_location,
-                   const Logger &log, const Printer &printer);
+    ImageProcessor(cv::Mat image, std::string output_location, Logger &log,
+                   Printer &printer);
 
     // TODO check if image is present before doing anything
     void getImage(std::string path);
+    void getImage(cv::Mat &image);
 
     void write(std::string path);
 
