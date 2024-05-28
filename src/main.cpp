@@ -90,24 +90,36 @@ int main(int argc, char **argv) {
                               cv::WindowPropertyFlags::WND_PROP_FULLSCREEN,
                               cv::WindowFlags::WINDOW_FULLSCREEN);
         // Templates templates(image.image);
-        camMan.calibrate(window_name, settings.outputLocation, 15000);
+        state.calibrate = true;
         while (state.key != 'q') {
             // ? multithreaded? One video creation, one showing and one server
             state.next = 0;
             state.idx = 0;
 
+            if (state.calibrate) {
+                camMan.calibrate(window_name, settings.outputLocation, 15000);
+                state.calibrate = false;
+            }
+
             std::cerr << "hello" << std::endl;
             auto returned_state = camMan.grab();
             if (returned_state == sl::ERROR_CODE::SUCCESS) {
                 camMan.imageProcessing(false);
-                imshow(window_name, camMan.image_depth_cv);
+                // cv::Mat ROI = camMan.image_depth_cv(camMan.image_mask_cv);
+                // imshow(window_name, camMan.image_depth_cv);
+                int height = camMan.image_depth_cv.rows;
+                int width = camMan.image_depth_cv.cols;
+                cv::Mat transformed(height, width, CV_8UC1);
+                cv::warpPerspective(camMan.image_depth_cv, transformed,
+                                    camMan.homography, cv::Size(width, height));
+                imshow(window_name, transformed);
             }
 
             state.key = cv::waitKey(10);
 
             // TODO color coding for objects via tamplates
 
-            state.pauseApp();
+            state.action();
             // ! calibration
         }
 

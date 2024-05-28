@@ -11,6 +11,29 @@
 #include <string>
 #include <vector>
 
+struct InteractiveState {
+    char key;
+    bool pause = false;
+    bool next = false;
+    bool calibrate = false;
+    int idx = 0;
+
+    void printHelp() {
+        std::cout << " Press 'q' to exit..." << std::endl;
+        std::cout << " Press 'p' to exit..." << std::endl;
+    }
+
+    void action() {
+        if (key == 'p') pause = !pause;
+        while (pause && !next) {
+            key = cv::waitKey(0);
+            if (key == 'p') pause = !pause;
+            if (key == ' ' || key == 'q') next = true;
+        }
+        if (key == 'c') calibrate = true;
+    }
+};
+
 class Printer {
    public:
     enum ERROR {
