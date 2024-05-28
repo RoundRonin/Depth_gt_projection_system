@@ -71,14 +71,14 @@ class CameraManager {
             new sl::Mat(m_resolution, sl::MAT_TYPE::U8_C4, sl::MEM::CPU);
         image_depth_cv = slMat2cvMat(*image_depth);
         image_mask =
-            new sl::Mat(m_resolution, sl::MAT_TYPE::U8_C4, sl::MEM::CPU);
+            new sl::Mat(m_resolution, sl::MAT_TYPE::U8_C1, sl::MEM::CPU);
         image_mask_cv = slMat2cvMat(*image_mask);
     }
 
     sl::ERROR_CODE grab() {
         auto returned_state = m_zed.grab(m_runParams);
         if (returned_state == sl::ERROR_CODE::SUCCESS)
-            m_isGrabbed == true;
+            m_isGrabbed = true;
         else
             return returned_state;
 
@@ -121,8 +121,12 @@ class CameraManager {
         cv::Mat white(m_resolution.height, m_resolution.width, CV_8UC4,
                       cv::Scalar(255, 255, 255, 255));
 
+        cv::imshow(windowName, white);
+        cv::waitKey(100);
         int biggestMaskIdx = 0;
         while (true) {
+            imageProcessor.pruneMasks();
+
             cv::imshow(windowName, white);
             cv::waitKey(100);
 
@@ -131,9 +135,6 @@ class CameraManager {
                 throw("Frame is not grabbed");
             m_zed.retrieveImage(*image_gray, sl::VIEW::LEFT_GRAY, sl::MEM::CPU,
                                 m_resolution);
-            imwrite((saveLocation + "white.png"), image_gray_cv);
-
-            // uchar4 channels = {0, 0, 0, 0};
 
             int value = 0;
             int max = 0;
@@ -147,12 +148,10 @@ class CameraManager {
 
                 value = (int)image_gray_cv.at<uchar>(y, x);
                 if (value > max) max = value;
-                // std::cout << "Max: " << max << " Value: " << value <<
-                // std::endl;
             }
 
-            imageProcessor.getImage(image_gray_cv);
-            imageProcessor.findObjects(10, max - 30, 10, 1000, 4, false);
+            imageProcessor.getImage(&image_gray_cv);
+            imageProcessor.findObjects(10, max - 30, 10, minArea, 4, false);
 
             int area = 0;
             int maxArea = 0;
@@ -164,14 +163,17 @@ class CameraManager {
                 }
             }
 
-            std::cout << maxArea << std::endl;
+            std::cout << std::endl << maxArea << std::endl;
+
             if (maxArea < minArea)
                 continue;
             else
                 break;
         }
 
-        image_mask_cv = imageProcessor.mask_mats.at(biggestMaskIdx).mat;
+        image_mask_cv = imageProcessor.mask_mats.at(biggestMaskIdx).mat.clone();
+        imageProcessor.pruneMasks();
+        (*image_mask) = cvMat2slMat(image_mask_cv);
         (*image_mask).write((saveLocation + "ROI_mask.png").c_str());
         m_zed.setRegionOfInterest(*image_mask);
     }

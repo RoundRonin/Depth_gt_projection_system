@@ -21,7 +21,7 @@ class ImageProcessor {
     // TODO temp
     cv::Mat m_objects;
 
-    cv::Mat image;
+    cv::Mat *image;
 
     struct MatWithInfo {
         cv::Mat mat;
@@ -47,7 +47,7 @@ class ImageProcessor {
 
     // TODO check if image is present before doing anything
     void getImage(std::string path);
-    void getImage(cv::Mat &image);
+    void getImage(cv::Mat *new_image);
 
     void write(std::string path);
 
@@ -58,6 +58,8 @@ class ImageProcessor {
     void findObjects(uchar zlimit = 10, uchar minDistance = 0,
                      uchar medium_limit = 10, int minDots = 1000,
                      int maxObjects = 5, bool recurse = false);
+
+    void pruneMasks();
 
    private:
     int directions[4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};

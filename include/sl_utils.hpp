@@ -101,4 +101,40 @@ cv::Mat slMat2cvMat(sl::Mat &input) {
     return cv::Mat(input.getHeight(), input.getWidth(), cv_type,
                    input.getPtr<sl::uchar1>(sl::MEM::CPU));
 }
+
+sl::Mat cvMat2slMat(cv::Mat &input) {
+    sl::MAT_TYPE sl_type = sl::MAT_TYPE::S8_C4;
+    switch (input.type()) {
+        case CV_32FC1:
+            sl_type = sl::MAT_TYPE::F32_C1;
+            break;
+        case CV_32FC2:
+            sl_type = sl::MAT_TYPE::F32_C2;
+            break;
+        case CV_32FC3:
+            sl_type = sl::MAT_TYPE::F32_C3;
+            break;
+        case CV_32FC4:
+            sl_type = sl::MAT_TYPE::F32_C4;
+            break;
+        case CV_8UC1:
+            sl_type = sl::MAT_TYPE::U8_C1;
+            break;
+        case CV_8UC2:
+            sl_type = sl::MAT_TYPE::U8_C2;
+            break;
+        case CV_8UC3:
+            sl_type = sl::MAT_TYPE::U8_C3;
+            break;
+        case CV_8UC4:
+            sl_type = sl::MAT_TYPE::U8_C4;
+            break;
+        default:
+            throw std::runtime_error("Unsupported cv::Mat type");
+    }
+    // Since cv::Mat data requires a uchar* pointer, we get the uchar1 pointer
+    // from sl::Mat (getPtr<T>()) cv::Mat and sl::Mat will share a single memory
+    // structure
+    return sl::Mat(input.cols, input.rows, sl_type, input.data, input.step);
+}
 #endif

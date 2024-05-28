@@ -90,12 +90,13 @@ int main(int argc, char **argv) {
                               cv::WindowPropertyFlags::WND_PROP_FULLSCREEN,
                               cv::WindowFlags::WINDOW_FULLSCREEN);
         // Templates templates(image.image);
-        camMan.calibrate(window_name, settings.outputLocation, 5000);
+        camMan.calibrate(window_name, settings.outputLocation, 15000);
         while (state.key != 'q') {
             // ? multithreaded? One video creation, one showing and one server
             state.next = 0;
             state.idx = 0;
 
+            std::cerr << "hello" << std::endl;
             auto returned_state = camMan.grab();
             if (returned_state == sl::ERROR_CODE::SUCCESS) {
                 camMan.imageProcessing(false);
