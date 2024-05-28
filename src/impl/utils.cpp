@@ -10,6 +10,27 @@
 #include <string>
 #include <vector>
 
+struct InteractiveState {
+    char key;
+    bool pause = false;
+    bool next = false;
+    int idx = 0;
+
+    void printHelp() {
+        cout << " Press 'q' to exit..." << endl;
+        cout << " Press 'p' to exit..." << endl;
+    }
+
+    void pauseApp() {
+        if (key == 'p') pause = !pause;
+        while (pause && !next) {
+            key = cv::waitKey(0);
+            if (key == 'p') pause = !pause;
+            if (key == ' ' || key == 'q') next = true;
+        }
+    }
+};
+
 void Printer::log_message(message msg) {
     auto [type, values, name, importance] = msg;
     if (importance > m_debug_level) return;

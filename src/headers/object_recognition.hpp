@@ -22,7 +22,13 @@ class ImageProcessor {
     cv::Mat m_objects;
 
     cv::Mat image;
-    std::vector<cv::Mat> mask_mats;
+
+    struct MatWithInfo {
+        cv::Mat mat;
+        int area = 0;
+    };
+
+    std::vector<MatWithInfo> mask_mats;
 
     struct Stats {
         int &isited;

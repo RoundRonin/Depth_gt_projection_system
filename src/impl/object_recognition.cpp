@@ -48,6 +48,7 @@ void ImageProcessor::getImage(cv::Mat &image) {
     // TODO add checks, return error
     image = image;
     CV_Assert(image.depth() == CV_8U);
+    CV_Assert(image.channels() == 1);
     if (image.empty()) return;
 
     m_objects = cv::Mat(image.rows, image.cols, CV_8U, double(0));
@@ -131,7 +132,7 @@ void ImageProcessor::findObjects(uchar zlimit, uchar minDistance,
         y = i / nCols;
 
         // Skip undesired points
-        current = Point(x, y);
+        current = Point(x, y);  //? remove this init?
         val = image.at<uchar>(current);
         visited++;
         if (val <= m_min_distance) continue;
@@ -152,7 +153,7 @@ void ImageProcessor::findObjects(uchar zlimit, uchar minDistance,
         }
 
         if (mask_mats.size() < maxObjects)
-            mask_mats.push_back(output);
+            mask_mats.push_back({output, amount});
         else {
             m_printer.log_message({w_limit, {maxObjects}});
             m_log.drop();
@@ -171,7 +172,8 @@ void ImageProcessor::findObjects(uchar zlimit, uchar minDistance,
     m_log.flush();
 
     for (int i = 0; i < mask_mats.size(); i++) {
-        imwrite(m_out_path + "mask " + to_string(i) + " .png", mask_mats.at(i));
+        imwrite(m_out_path + "mask " + to_string(i) + " .png",
+                mask_mats.at(i).mat);
     }
 
     imwrite(m_out_path + "objects.png", m_objects);
