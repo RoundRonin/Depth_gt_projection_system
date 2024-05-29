@@ -20,7 +20,16 @@
 using namespace std;
 
 // TODO make secure
+// TODO probably need to make it unchangable from outside
 struct Config {
+    enum SOURCE_TYPE { IMAGE, SVO, STREAM };
+    SOURCE_TYPE type = SOURCE_TYPE::STREAM;
+    bool from_config = false;
+
+    int debug_level = 0;
+    string file_path;
+
+    //
     bool save_logs = false;
     bool maesure_time = false;
     string output_location = "./Result/";
@@ -166,6 +175,21 @@ struct Config {
     }
 };
 
+struct ErosionDilation {
+    enum Type { Erosion, Dilation };
+    Type type;
+    uchar distance = 3;
+    uchar size = 3;
+};
+
+struct HoughLinesPsets {
+    int rho = 1;
+    int theta_denom = 180;
+    int threshold = 20;
+    int min_line_length = 60;
+    int max_line_gap = 1;
+};
+
 class Settings {
     int m_argc;
     char **m_argv;
@@ -173,15 +197,14 @@ class Settings {
     struct option *m_long_options;
 
    public:
-    enum SOURCE_TYPE { IMAGE, SVO, STREAM, CONFIG };
-    SOURCE_TYPE type = SOURCE_TYPE::STREAM;
-
-    int debug_level = 0;
-    string file_path;
-
     static Config config;
+    vector<ErosionDilation> erodil;
+    HoughLinesPsets hough_params;
 
-    Settings() {}
+    Settings() {
+        erodil.push_back({ErosionDilation::Type::Erosion, 3, 3});
+        erodil.push_back({ErosionDilation::Type::Dilation, 3, 3});
+    }
 
     Printer::ERROR Init(int argc, char **argv) {
         // TODO define if parse cli or file
@@ -189,27 +212,28 @@ class Settings {
         m_argc = argc, m_argv = argv;
         if (argc <= 1) return Printer::ERROR::ARGS_FAILURE;
 
+        string filename = "";
         // TODO consider config location flag somehow...
         if (argv[1] == "--config") {
-            type = SOURCE_TYPE::CONFIG;
+            config.from_config = true;
+            filename = argv[2];
+        } else if (argv[1][0] == '-')
             return Printer::ERROR::SUCCESS;
-        }
-
-        if (argv[1][0] == '-') return Printer::ERROR::SUCCESS;
-
-        string filename = argv[1];
-        if (filename.substr(filename.size() - 4) == ".svo")
-            type = SOURCE_TYPE::SVO;
         else
-            type = SOURCE_TYPE::IMAGE;
+            filename = argv[1];
 
-        file_path = filename;
+        if (filename.substr(filename.size() - 4) == ".svo")
+            config.type = Config::SOURCE_TYPE::SVO;
+        else
+            config.type = Config::SOURCE_TYPE::IMAGE;
+
+        config.file_path = filename;
 
         return Printer::ERROR::SUCCESS;
     }
 
     void Parse() {
-        if (type == SOURCE_TYPE::CONFIG) {
+        if (config.from_config == true) {
             ParseConfig();
         }
 
@@ -219,9 +243,9 @@ class Settings {
             // TODO fix debug_level change not working
             std::vector<option> long_options{
                 // {"config", no_argument, &init_from_config, 1},
-                {"verbose", no_argument, &debug_level, 2},
-                {"brief", no_argument, &debug_level, 1},
-                {"production", no_argument, &debug_level, 0},
+                {"verbose", no_argument, &config.debug_level, 2},
+                {"brief", no_argument, &config.debug_level, 1},
+                {"production", no_argument, &config.debug_level, 0},
             };
 
             for (auto description : config.descriptions) {
@@ -266,23 +290,55 @@ class Settings {
 
         for (auto description : config.descriptions) {
             string param = description.opt.name;
-            string result =
-                config.setParameter<string>(param, json[param].get<char *>());
+            char *json_value = json[param].get<char *>();
+            config.setParameter<string>(param, json_value);
         }
+        string level_word = json["debug_level"].get<char *>();
+        int debug_level = 0;
+        if (level_word == "production") {
+            debug_level = 0;
+        } else if (level_word == "brief") {
+            debug_level = 1;
+        } else if (level_word == "verbose") {
+            debug_level = 2;
+        }
+
+        config.debug_level = debug_level;
 
         auto values = config.getStringValues();
         for (auto value : values) {
             std::cout << value.first << ": " << value.second << std::endl;
+        }
+
+        // Parse HoughLinesP
+        hough_params.rho = json["HoughLinesP"]["rho"].get<int>();
+        hough_params.theta_denom =
+            json["HoughLinesP"]["theta_denom"].get<int>();
+        hough_params.threshold = json["HoughLinesP"]["threshold"].get<int>();
+        hough_params.min_line_length =
+            json["HoughLinesP"]["min_line_length"].get<int>();
+        hough_params.max_line_gap =
+            json["HoughLinesP"]["max_line_gap"].get<int>();
+
+        // Parse erodil
+        erodil.clear();
+        for (const auto &entry : json["erodil"]) {
+            ErosionDilation ed;
+            ed.type = (entry["type"] == "erosion") ? ErosionDilation::Erosion
+                                                   : ErosionDilation::Dilation;
+            ed.distance = entry["distance"].get<uchar>();
+            ed.size = entry["size"].get<uchar>();
+            erodil.push_back(ed);
         }
     }
 
    private:
     void printUsage() {
         std::cout << "Usage:" << std::endl;
-        std::cout << "   $ " << m_argv[0] << "<DEPTH_MAP|SVO> <flags>"
-                  << std::endl;
-        std::cout << "** Depth map file or .SVO file is mandatory for the "
-                     "application **"
+        std::cout << "   $ " << m_argv[0]
+                  << "[--config] <DEPTH_MAP|SVO> <flags>" << std::endl;
+        std::cout << "** You can pass Depth map file or .SVO file or none of "
+                     "them to connect to the camera  **"
                   << std::endl;
     }
     void printHelp() {

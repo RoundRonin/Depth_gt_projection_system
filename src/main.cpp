@@ -25,8 +25,6 @@ using namespace std;
 
 // TODO free cam on process kill
 
-// TODO use zed.setRegionOfInterest to discard all area beyond the projector
-
 void signalHandler(int signalNumber);
 
 int main(int argc, char **argv) {
@@ -51,32 +49,23 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    printer.setDebugLevel(
-        static_cast<Printer::DEBUG_LVL>(settings.debug_level));
+    Config config = settings.config;
+    vector<ErosionDilation> erodil = settings.erodil;
+    HoughLinesPsets hough_params = settings.hough_params;
 
-    Logger logger("log", 0, 0, settings.save_logs, settings.measure_time,
-                  settings.debug_level);
+    printer.setDebugLevel(static_cast<Printer::DEBUG_LVL>(config.debug_level));
 
-    ImageProcessor image(settings.outputLocation.value, logger, printer);
-    if (settings.type == Settings::SOURCE_TYPE::IMAGE) {
-        image.getImage(settings.FilePath);
+    Logger logger("log", 0, 0, config.save_logs, config.maesure_time,
+                  config.debug_level);
+
+    ImageProcessor image(config.output_location, logger, printer);
+    if (config.type == Config::SOURCE_TYPE::IMAGE) {
+        image.getImage(config.file_path);
     } else {
-        zed::CameraManager camMan(
-            {
-                .depth_mode =
-                    static_cast<sl::DEPTH_MODE>(settings.depth_mode.value),
-                .max_distance = settings.camera_distance,
-                .threshold = settings.threshold,
-                .texture_threshold = settings.texture_threshold,
-                .fill_mode = settings.fill_mode,
-                .isSVO = settings.type == Settings::SOURCE_TYPE::SVO,
-                .file_path = (settings.FilePath).c_str(),
-                .resolutionQ = 1,  // TODO handle resolution setting;
-            },
-            printer);
+        zed::CameraManager camMan(printer);
 
         try {
-            camMan.openCam();
+            camMan.openCam(config);
             // camMan.imageProcessing(false);
         } catch (const std::exception &e) {
             std::cerr << e.what() << '\n';
@@ -96,9 +85,20 @@ int main(int argc, char **argv) {
             state.next = 0;
             state.idx = 0;
 
+            if (state.load_settings) {
+                settings.ParseConfig();
+                config = settings.config;
+                erodil = settings.erodil;
+                hough_params = settings.hough_params;
+
+                camMan.updateRunParams(config);
+                camMan.updateHough(hough_params);
+                state.load_settings = false;
+            }
+
             if (state.calibrate) {
                 try {
-                    camMan.calibrate(window_name, settings.outputLocation,
+                    camMan.calibrate(window_name, config.output_location,
                                      15000);
                     state.calibrate = false;
                 } catch (const std::exception &e) {

@@ -2,8 +2,7 @@
     "configurations": [
         {
             "name": "Total",
-            "help": true,
-            "save": true,
+            "save_logs": true,
             "time": true,
             "recurse": false,
             "zlimit": 10,
@@ -22,23 +21,22 @@
         },
         {
             "name": "Total erodil hough",
-            "help": true,
-            "save": true,
-            "time": true,
+            "save_logs": true,
+            "maesure_time": true,
+            "output_location": "./Result",
+            "config_location": "./Config",
             "recurse": false,
-            "zlimit": 10,
-            "mindistance": 100,
-            "medium": 10,
-            "minarea": 10000,
-            "maxobjects": 10,
-            "output": "./Result",
-            "config": "./Config",
-            "fillmode": false,
+            "z_limit": 10,
+            "min_distance": 100,
+            "medium_limit": 10,
+            "min_area": 10000,
+            "max_objects": 10,
+            "fill_mode": false,
             "threshold": 50,
-            "threshold-texture": 100,
-            "depthmode": "ULTRA",
+            "texture_threshold": 100,
+            "depth_mode": 3,
             "cameradistance": 20,
-            "debug-level": "brief",
+            "debug_level": "brief",
             "erodil": [
                 {
                     "type": "erosion",
@@ -65,8 +63,8 @@
                 "rho": 1,
                 "theta_denom": 180,
                 "threshold": 20,
-                "minLineLength": 60,
-                "maxLineGap": 10
+                "min_line_length": 60,
+                "max_line_gap": 10
             }
         }
     ]

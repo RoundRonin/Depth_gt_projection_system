@@ -16,11 +16,16 @@ struct InteractiveState {
     bool pause = false;
     bool next = false;
     bool calibrate = false;
+    bool load_settings = false;
+    bool restart_cam = false;
     int idx = 0;
 
     void printHelp() {
-        std::cout << " Press 'q' to exit..." << std::endl;
-        std::cout << " Press 'p' to exit..." << std::endl;
+        std::cout << " Press 'q' to exit" << std::endl;
+        std::cout << " Press 'p' or ' ' to pasue" << std::endl;
+        std::cout << " Press 'c' to calibrate" << std::endl;
+        std::cout << " Press 'l' to load settings from config" << std::endl;
+        std::cout << " Press 'r' to restart camera" << std::endl;
     }
 
     void action() {
@@ -31,6 +36,8 @@ struct InteractiveState {
             if (key == ' ' || key == 'q') next = true;
         }
         if (key == 'c') calibrate = true;
+        if (key == 'l') load_settings = true;
+        if (key == 'r') restart_cam = true;
     }
 };
 

@@ -11,18 +11,6 @@
 
 namespace zed {
 
-// TODO refactor
-struct Parameters {
-    sl::DEPTH_MODE depth_mode = sl::DEPTH_MODE::ULTRA;
-    int max_distance = 20;
-    int threshold = 10;
-    int texture_threshold = 100;
-    bool fill_mode = false;
-    bool isSVO = false;
-    sl::String file_path;
-    int resolutionQ = 1;  // TODO handle resolution setting;
-};
-
 class CameraManager {
     Printer m_printer;
     Printer::DEBUG_LVL m_prod = Printer::DEBUG_LVL::PRODUCTION;
@@ -33,8 +21,8 @@ class CameraManager {
     sl::InitParameters m_initParams;
     sl::RuntimeParameters m_runParams;
     sl::Resolution m_resolution;
-    Parameters m_params;
     int m_svo_pos;
+    HoughLinesPsets m_hough_params;
 
     bool m_isGrabbed;
 
@@ -50,17 +38,16 @@ class CameraManager {
 
     cv::Mat homography;
 
-    CameraManager(Parameters params, Printer printer)
-        : m_params(params), m_printer(printer){};
+    CameraManager(Printer printer) : m_printer(printer){};
 
     // TODO sl::ERROR?
-    void openCam() {
-        setInitParams(m_params);
+    void openCam(Config config) {
+        setInitParams(config);
         auto returned_state = m_zed.open(m_initParams);
         if (returned_state != sl::ERROR_CODE::SUCCESS) {
             throw(returned_state);
         }
-        setRunParams(m_params);
+        setRunParams(config);
         m_isGrabbed = false;
 
         image_color =
@@ -75,6 +62,18 @@ class CameraManager {
         image_mask =
             new sl::Mat(m_resolution, sl::MAT_TYPE::U8_C1, sl::MEM::CPU);
         image_mask_cv = slMat2cvMat(*image_mask);
+    }
+
+    void restartCamera(Config config) {
+        m_zed.close();
+        openCam(config);
+        // TODO destroy some things?
+    }
+
+    void updateRunParams(Config config) { setRunParams(config); }
+
+    void updateHough(HoughLinesPsets hough_params) {
+        m_hough_params = hough_params;
     }
 
     sl::ERROR_CODE grab() {
@@ -195,16 +194,18 @@ class CameraManager {
 
    private:
     // TODO error??
-    void setInitParams(Parameters params) {
-        m_initParams.depth_mode = params.depth_mode;
+    void setInitParams(Config config) {
+        m_initParams.depth_mode =
+            static_cast<sl::DEPTH_MODE>(config.depth_mode);
         m_initParams.coordinate_system =
             sl::COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
         m_initParams.sdk_verbose = 1;  // TODO cli?
         m_initParams.camera_resolution = sl::RESOLUTION::AUTO;
         m_initParams.coordinate_units = sl::UNIT::METER;
-        m_initParams.depth_maximum_distance = params.max_distance;
+        m_initParams.depth_maximum_distance = config.camera_diatance;
         // TODO check for files existance
-        if (params.isSVO) m_initParams.input.setFromSVOFile(m_params.file_path);
+        if (config.type == Config::SOURCE_TYPE::SVO)
+            m_initParams.input.setFromSVOFile((config.file_path).c_str());
     }
 
     void initSVO() {
@@ -219,16 +220,16 @@ class CameraManager {
         m_zed.setSVOPosition(m_svo_pos);
     }
 
-    void setRunParams(Parameters params) {
-        m_runParams.confidence_threshold = params.threshold;
-        m_runParams.texture_confidence_threshold = params.texture_threshold;
-        m_runParams.enable_fill_mode = params.fill_mode;
+    void setRunParams(Config config) {
+        m_runParams.confidence_threshold = config.threshold;
+        m_runParams.texture_confidence_threshold = config.texture_threshold;
+        m_runParams.enable_fill_mode = config.fill_mode;
 
         // TODO scale resolution
         m_resolution =
             m_zed.getCameraInformation().camera_configuration.resolution;
 
-        if (params.isSVO) initSVO();
+        if (config.type == Config::SOURCE_TYPE::SVO) initSVO();
     }
 
     void deduceHomography() {
@@ -305,7 +306,10 @@ class CameraManager {
         vector<Vec4i> lines;
         drawContours(image_hull, hull, 0, Scalar(255));
         imwrite("./Result/hull.png", image_hull);
-        cv::HoughLinesP(image_hull, lines, 1, CV_PI / 180, 20, 60, 10);
+        cv::HoughLinesP(
+            image_hull, lines, m_hough_params.rho,
+            CV_PI / m_hough_params.theta_denom, m_hough_params.threshold,
+            m_hough_params.min_line_length, m_hough_params.max_line_gap);
         cout << "lines size:" << lines.size() << endl;
 
         if (lines.size() == 4)  // we found the 4 sides
