@@ -31,9 +31,10 @@ struct Config {
 
     //
     bool save_logs = false;
-    bool maesure_time = false;
+    bool measure_time = false;
     string output_location = "./Result/";
     string config_location = "./Config/";
+    string config_name = "Default";
 
     bool recurse = false;
     uchar z_limit = 10;
@@ -48,8 +49,6 @@ struct Config {
     int depth_mode = 3;
     int camera_diatance = 20;
 
-    // T setValue(T value) {
-    // }
     struct Description {
         option opt;
         string desc = "NO DESCRIPTION";
@@ -57,11 +56,12 @@ struct Config {
 
     std::vector<Description> descriptions = {
         {{"save_logs", no_argument, 0, 'l'}, "toggle log saving"},
-        {{"maesure_time", no_argument, 0, 't'}, "toggle time measurement"},
+        {{"measure_time", no_argument, 0, 't'}, "toggle time measurement"},
         {{"output_location", required_argument, 0, 'O'},
          "define output location"},
         {{"config_location", required_argument, 0, 'C'},
-         "define conofig directory"},
+         "define config directory"},
+        {{"config_name", required_argument, 0, 'N'}, "define config name"},
 
         {{"recurse", no_argument, 0, 'r'}, "toggle recursion [Dangerous]"},
         {{"z_limit", required_argument, 0, 'Z'},
@@ -88,70 +88,69 @@ struct Config {
     };
 
     // allows to set and/OR read parameter by name/flag
-    template <typename T>
-    string setParameter(T parameter_name, char *value, bool set = true) {
-        if (parameter_name == descriptions.at(0).opt.name ||
-            parameter_name == descriptions.at(0).opt.flag) {
+    string setParameter(string name, int flag, char *value, bool use_flag,
+                        bool set = true) {
+        // lambda to check if an item is what we are setting
+        auto check = [this, name, flag, use_flag](int idx) -> bool {
+            if (use_flag) {
+                return (flag == descriptions.at(idx).opt.val);
+            } else {
+                return (name == descriptions.at(idx).opt.name);
+            }
+
+            return false;
+        };
+
+        if (check(0)) {
             if (set) save_logs = true;
-            return string(save_logs);
-        } else if (parameter_name == descriptions.at(1).opt.name ||
-                   parameter_name == descriptions.at(1).opt.flag) {
-            if (set) maesure_time = true;
-            return string(maesure_time);
-        } else if (parameter_name == descriptions.at(2).opt.name ||
-                   parameter_name == descriptions.at(2).opt.flag) {
+            return save_logs ? "true" : "false";
+        } else if (check(1)) {
+            if (set) measure_time = true;
+            return measure_time ? "true" : "false";
+        } else if (check(2)) {
             if (set) output_location = value;
-            return string(output_location);
-        } else if (parameter_name == descriptions.at(3).opt.name ||
-                   parameter_name == descriptions.at(3).opt.flag) {
+            return output_location;
+        } else if (check(3)) {
             if (set) config_location = value;
-            return string(config_location);
-        } else if (parameter_name == descriptions.at(4).opt.name ||
-                   parameter_name == descriptions.at(4).opt.flag) {
+            return config_location;
+        } else if (check(4)) {
+            if (set) config_name = value;
+            return config_name;
+        } else if (check(5)) {
             if (set) recurse = true;
-            return string(recurse);
-        } else if (parameter_name == descriptions.at(5).opt.name ||
-                   parameter_name == descriptions.at(5).opt.flag) {
+            return recurse ? "true" : "false";
+        } else if (check(6)) {
             if (set) z_limit = atoi(optarg);
-            return string(z_limit);
-        } else if (parameter_name == descriptions.at(6).opt.name ||
-                   parameter_name == descriptions.at(6).opt.flag) {
+            return to_string(z_limit);
+        } else if (check(7)) {
             if (set) min_distance = atoi(optarg);
-            return string(min_distance);
-        } else if (parameter_name == descriptions.at(7).opt.name ||
-                   parameter_name == descriptions.at(7).opt.flag) {
+            return to_string(min_distance);
+        } else if (check(8)) {
             if (set) medium_limit = atoi(value);
-            return string(medium_limit);
-        } else if (parameter_name == descriptions.at(8).opt.name ||
-                   parameter_name == descriptions.at(8).opt.flag) {
+            return to_string(medium_limit);
+        } else if (check(9)) {
             if (set) min_area = atoi(value);
-            return string(min_area);
-        } else if (parameter_name == descriptions.at(9).opt.name ||
-                   parameter_name == descriptions.at(9).opt.flag) {
+            return to_string(min_area);
+        } else if (check(10)) {
             if (set) max_objects = atoi(value);
-            return string(max_objects);
-        } else if (parameter_name == descriptions.at(10).opt.name ||
-                   parameter_name == descriptions.at(10).opt.flag) {
+            return to_string(max_objects);
+        } else if (check(11)) {
             if (set) fill_mode = true;
-            return string(fill_mode);
-        } else if (parameter_name == descriptions.at(11).opt.name ||
-                   parameter_name == descriptions.at(11).opt.flag) {
+            return fill_mode ? "true" : "false";
+        } else if (check(12)) {
             if (set) threshold = atoi(value);
-            return string(threshold);
-        } else if (parameter_name == descriptions.at(12).opt.name ||
-                   parameter_name == descriptions.at(12).opt.flag) {
+            return to_string(threshold);
+        } else if (check(13)) {
             if (set) texture_threshold = atoi(value);
-            return string(texture_threshold);
-        } else if (parameter_name == descriptions.at(13).opt.name ||
-                   parameter_name == descriptions.at(13).opt.flag) {
+            return to_string(texture_threshold);
+        } else if (check(14)) {
             if (set) depth_mode = atoi(value);
-            return string(depth_mode);
-        } else if (parameter_name == descriptions.at(14).opt.name ||
-                   parameter_name == descriptions.at(14).opt.flag) {
+            return to_string(depth_mode);
+        } else if (check(15)) {
             if (set) camera_diatance = atoi(value);
-            return string(camera_diatance);
+            return to_string(camera_diatance);
         } else
-            throw runtime_error("Wrong parameter")
+            throw runtime_error("Wrong parameter");
     }
 
     // TODO potential to substitute for map
@@ -159,7 +158,7 @@ struct Config {
         map<string, string> values;
         for (auto description : descriptions) {
             string param = description.opt.name;
-            string result = setParameter(param, "", false);
+            string result = setParameter(param, 0, "", false, false);
             values.insert({param, result});
         }
 
@@ -173,6 +172,8 @@ struct Config {
 
         throw runtime_error("No such parameter");
     }
+
+    string getFlagsString() {}
 };
 
 struct ErosionDilation {
@@ -197,7 +198,7 @@ class Settings {
     struct option *m_long_options;
 
    public:
-    static Config config;
+    Config config;
     vector<ErosionDilation> erodil;
     HoughLinesPsets hough_params;
 
@@ -214,18 +215,29 @@ class Settings {
 
         string filename = "";
         // TODO consider config location flag somehow...
-        if (argv[1] == "--config") {
+        string first_argument = argv[1];
+        if (first_argument == "--config") {
             config.from_config = true;
             filename = argv[2];
-        } else if (argv[1][0] == '-')
-            return Printer::ERROR::SUCCESS;
-        else
-            filename = argv[1];
+        } else
+            filename = first_argument;
 
-        if (filename.substr(filename.size() - 4) == ".svo")
-            config.type = Config::SOURCE_TYPE::SVO;
-        else
-            config.type = Config::SOURCE_TYPE::IMAGE;
+        if (filename.at(0) == '-') return Printer::ERROR::SUCCESS;
+
+        size_t dot_pos = filename.find_last_of('.');
+
+        if (dot_pos != std::string::npos) {
+            // Extract the extension
+            std::string extension = filename.substr(dot_pos + 1);
+            std::cout << "File extension: " << extension << std::endl;
+
+            if (extension == "svo")
+                config.type = Config::SOURCE_TYPE::SVO;
+            else
+                config.type = Config::SOURCE_TYPE::IMAGE;
+        } else {
+            std::cout << "No extension found. Using camera..." << std::endl;
+        }
 
         config.file_path = filename;
 
@@ -240,7 +252,6 @@ class Settings {
         int c;
 
         while (1) {
-            // TODO fix debug_level change not working
             std::vector<option> long_options{
                 // {"config", no_argument, &init_from_config, 1},
                 {"verbose", no_argument, &config.debug_level, 2},
@@ -256,7 +267,9 @@ class Settings {
 
             int option_index = 0;
 
-            c = getopt_long(m_argc, m_argv, "hltrO:Z:D:M:A:B:", m_long_options,
+            // TODO Make this string autocreated
+            c = getopt_long(m_argc, m_argv,
+                            "hltrfO:C:Z:D:M:A:B:T:X:U:R:", m_long_options,
                             &option_index);
 
             if (c == -1) break;
@@ -274,7 +287,7 @@ class Settings {
                     break;
                 }
                 default: {
-                    config.setParameter<int>(c, optarg);
+                    config.setParameter("", c, optarg, true);
                     break;
                 }
             }
@@ -284,51 +297,86 @@ class Settings {
     void ParseConfig() {
         nlohmann::json json;
 
-        // Read JSON data from a file
-        std::ifstream file(config.config_location);
+        // std::ifstream file(config.config_location + "config.json");
+        std::ifstream file("./Config/config.json");
+        if (!file.is_open()) {
+            throw runtime_error("Failed to open file");
+        }
         file >> json;
 
-        for (auto description : config.descriptions) {
-            string param = description.opt.name;
-            char *json_value = json[param].get<char *>();
-            config.setParameter<string>(param, json_value);
-        }
-        string level_word = json["debug_level"].get<char *>();
-        int debug_level = 0;
-        if (level_word == "production") {
-            debug_level = 0;
-        } else if (level_word == "brief") {
-            debug_level = 1;
-        } else if (level_word == "verbose") {
-            debug_level = 2;
-        }
+        // Access the "configs" array
+        auto configurations = json["configurations"];
 
-        config.debug_level = debug_level;
+        // Find the config named "hello"
+        for (const auto &configuration : configurations) {
+            if (configuration["name"] == config.config_name) {
+                for (auto description : config.descriptions) {
+                    string param = description.opt.name;
+                    try {
+                        string json_value = configuration[param].get<string>();
+                        config.setParameter(param, 0, json_value.data(), false);
+                    } catch (const std::exception &e) {
+                        std::cerr << e.what() << " Field \"" << param << "\""
+                                  << '\n';
+                    }
+                }
 
-        auto values = config.getStringValues();
-        for (auto value : values) {
-            std::cout << value.first << ": " << value.second << std::endl;
-        }
+                string level_word = json["debug_level"].get<string>();
+                int debug_level = 0;
+                if (level_word == "production") {
+                    debug_level = 0;
+                } else if (level_word == "brief") {
+                    debug_level = 1;
+                } else if (level_word == "verbose") {
+                    debug_level = 2;
+                }
 
-        // Parse HoughLinesP
-        hough_params.rho = json["HoughLinesP"]["rho"].get<int>();
-        hough_params.theta_denom =
-            json["HoughLinesP"]["theta_denom"].get<int>();
-        hough_params.threshold = json["HoughLinesP"]["threshold"].get<int>();
-        hough_params.min_line_length =
-            json["HoughLinesP"]["min_line_length"].get<int>();
-        hough_params.max_line_gap =
-            json["HoughLinesP"]["max_line_gap"].get<int>();
+                config.debug_level = debug_level;
 
-        // Parse erodil
-        erodil.clear();
-        for (const auto &entry : json["erodil"]) {
-            ErosionDilation ed;
-            ed.type = (entry["type"] == "erosion") ? ErosionDilation::Erosion
-                                                   : ErosionDilation::Dilation;
-            ed.distance = entry["distance"].get<uchar>();
-            ed.size = entry["size"].get<uchar>();
-            erodil.push_back(ed);
+                auto values = config.getStringValues();
+                for (auto value : values) {
+                    std::cout << value.first << ": " << value.second
+                              << std::endl;
+                }
+
+                // Parse HoughLinesP
+                hough_params.rho = json["HoughLinesP"]["rho"].get<int>();
+                hough_params.theta_denom =
+                    json["HoughLinesP"]["theta_denom"].get<int>();
+                hough_params.threshold =
+                    json["HoughLinesP"]["threshold"].get<int>();
+                hough_params.min_line_length =
+                    json["HoughLinesP"]["min_line_length"].get<int>();
+                hough_params.max_line_gap =
+                    json["HoughLinesP"]["max_line_gap"].get<int>();
+
+                std::cout << "rho: " << hough_params.rho << std::endl;
+                std::cout << "theta_denom: " << hough_params.theta_denom
+                          << std::endl;
+                std::cout << "threshold: " << hough_params.threshold
+                          << std::endl;
+                std::cout << "min_line_length: " << hough_params.min_line_length
+                          << std::endl;
+                std::cout << "max_line_gap: " << hough_params.max_line_gap
+                          << std::endl;
+
+                // Parse erodil
+                erodil.clear();
+                for (const auto &entry : json["erodil"]) {
+                    ErosionDilation ed;
+                    ed.type = (entry["type"] == "erosion")
+                                  ? ErosionDilation::Erosion
+                                  : ErosionDilation::Dilation;
+                    ed.distance = entry["distance"].get<uchar>();
+                    ed.size = entry["size"].get<uchar>();
+                    erodil.push_back(ed);
+                }
+
+                std::cout << "Erodil size: " << erodil.size() << std::endl;
+            } else {
+                std::cout << "No config named " << config.config_name
+                          << std::endl;
+            }
         }
     }
 

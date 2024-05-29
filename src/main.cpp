@@ -27,6 +27,150 @@ using namespace std;
 
 void signalHandler(int signalNumber);
 
+class Loop {
+    Settings m_settings;
+    Printer m_printer;
+    Logger m_logger;
+    ImageProcessor m_image_processor;
+
+    InteractiveState m_state;
+
+   public:
+    string window_name;
+
+   public:
+    Loop(Settings sets, Printer print, Logger log, ImageProcessor img_proc)
+        : m_settings(sets),
+          m_printer(print),
+          m_logger(log),
+          m_image_processor(img_proc) {}
+
+    void Process() {
+        auto type = m_settings.config.type;
+        switch (type) {
+            case Config::SOURCE_TYPE::IMAGE:
+                imageProc();
+                break;
+            case Config::SOURCE_TYPE::SVO:
+                zedProc();
+                break;
+            case Config::SOURCE_TYPE::STREAM: {
+                initInteractivity();
+                zedProc();
+                doTheLoop();
+                // cleanup();
+            } break;
+            default:
+                break;
+        }
+    }
+
+    ~Loop() {}
+
+   private:
+    void imageProc() {
+        m_image_processor.getImage(m_settings.config.file_path);
+    }
+
+    void zedProc() { zed::CameraManager cam_man(m_printer); }
+
+    void initInteractivity() {
+        m_state.printHelp();
+        window_name = "Projection";
+        cv::namedWindow(window_name, cv::WindowFlags::WINDOW_NORMAL);
+        cv::setWindowProperty(window_name,
+                              cv::WindowPropertyFlags::WND_PROP_FULLSCREEN,
+                              cv::WindowFlags::WINDOW_FULLSCREEN);
+        // Templates templates(image.image);
+        m_state.calibrate = true;
+    }
+
+    void doTheLoop() {
+        zed::CameraManager cam_man(m_printer);
+
+        cam_man.openCam(m_settings.config);
+        // camMan.imageProcessing(false);
+
+        while (m_state.key != 'q') {
+            m_state.next = 0;
+            m_state.idx = 0;
+
+            if (m_state.load_settings) loadSettings(cam_man);
+            if (m_state.restart_cam) restartCamera(cam_man);
+            if (m_state.calibrate) {
+                try {
+                    cam_man.calibrate(window_name,
+                                      m_settings.config.output_location, 15000);
+                    m_state.calibrate = false;
+                } catch (const std::exception &e) {
+                    std::cerr << "Calibration failed; " << e.what() << '\n';
+                    m_state.calibrate = false;
+                }
+            }
+
+            auto returned_state = cam_man.grab();
+            if (returned_state == sl::ERROR_CODE::SUCCESS) {
+                try {
+                    cam_man.imageProcessing(false);
+                    int height = cam_man.image_depth_cv.rows;
+                    int width = cam_man.image_depth_cv.cols;
+                    cv::Mat transformed(height, width, CV_8UC1);
+                    cv::warpPerspective(cam_man.image_depth_cv, transformed,
+                                        cam_man.homography,
+                                        cv::Size(width, height));
+                    imshow(window_name, transformed);
+                } catch (const std::exception &e) {
+                    std::cerr << "Image processing failed; " << e.what()
+                              << '\n';
+                }
+            }
+
+            m_state.key = cv::waitKey(10);
+
+            // TODO color coding for objects via tamplates
+
+            m_state.action();
+            // ! calibration
+        }
+    }
+
+    void loadSettings(zed::CameraManager &cam_man) {
+        try {
+            m_printer.log_message({Printer::ERROR::INFO,
+                                   {0},
+                                   "Loading config",
+                                   Printer::DEBUG_LVL::PRODUCTION});
+            m_settings.ParseConfig();
+
+            cam_man.updateRunParams(m_settings.config);
+            cam_man.updateHough(m_settings.hough_params);
+            // image_processer.update(erodil);
+            // image_processer.update(settings)
+            m_state.load_settings = false;
+        } catch (const std::exception &e) {
+            std::cerr << e.what() << '\n';
+            m_state.load_settings = false;
+        }
+    }
+
+    void restartCamera(zed::CameraManager &cam_man) {
+        try {
+            m_printer.log_message({Printer::ERROR::INFO,
+                                   {0},
+                                   "Restarting camera",
+                                   Printer::DEBUG_LVL::PRODUCTION});
+            m_settings.ParseConfig();
+
+            cam_man.restartCamera(m_settings.config);
+            cam_man.updateHough(m_settings.hough_params);
+            m_state.restart_cam = false;
+        } catch (const std::exception &e) {
+            std::cerr << e.what() << '\n';
+            m_state.restart_cam = false;
+        }
+    }
+};
+
 int main(int argc, char **argv) {
     // TODO add more signals, work on handling
     signal(SIGTERM, signalHandler);
@@ -38,106 +182,25 @@ int main(int argc, char **argv) {
     auto Result = settings.Init(argc, argv);
     if (Result == Printer::ERROR::ARGS_FAILURE) {
         printer.log_message({Printer::ERROR::ARGS_FAILURE, {}, argv[0]});
-        return EXIT_FAILURE;
+        throw runtime_error("Settings failure");
     }
-
     try {
         settings.Parse();
     } catch (const std::exception &x) {
         printer.log_message({Printer::ERROR::FLAGS_FAILURE, {}, argv[0]});
         printer.log_message(x);
-        return EXIT_FAILURE;
+        throw runtime_error("Settings failure");
     }
+    int lvl = settings.config.debug_level;
+    printer.setDebugLevel(static_cast<Printer::DEBUG_LVL>(lvl));
 
-    Config config = settings.config;
-    vector<ErosionDilation> erodil = settings.erodil;
-    HoughLinesPsets hough_params = settings.hough_params;
+    Logger logger("log", 0, 0, settings.config.save_logs,
+                  settings.config.measure_time, settings.config.debug_level);
+    ImageProcessor image_processor(settings.config.output_location, logger,
+                                   printer);
 
-    printer.setDebugLevel(static_cast<Printer::DEBUG_LVL>(config.debug_level));
-
-    Logger logger("log", 0, 0, config.save_logs, config.maesure_time,
-                  config.debug_level);
-
-    ImageProcessor image(config.output_location, logger, printer);
-    if (config.type == Config::SOURCE_TYPE::IMAGE) {
-        image.getImage(config.file_path);
-    } else {
-        zed::CameraManager camMan(printer);
-
-        try {
-            camMan.openCam(config);
-            // camMan.imageProcessing(false);
-        } catch (const std::exception &e) {
-            std::cerr << e.what() << '\n';
-        }
-
-        InteractiveState state;
-        state.printHelp();
-        string window_name = "Projection";
-        cv::namedWindow(window_name, cv::WindowFlags::WINDOW_NORMAL);
-        cv::setWindowProperty(window_name,
-                              cv::WindowPropertyFlags::WND_PROP_FULLSCREEN,
-                              cv::WindowFlags::WINDOW_FULLSCREEN);
-        // Templates templates(image.image);
-        state.calibrate = true;
-        while (state.key != 'q') {
-            // ? multithreaded? One video creation, one showing and one server
-            state.next = 0;
-            state.idx = 0;
-
-            if (state.load_settings) {
-                settings.ParseConfig();
-                config = settings.config;
-                erodil = settings.erodil;
-                hough_params = settings.hough_params;
-
-                camMan.updateRunParams(config);
-                camMan.updateHough(hough_params);
-                state.load_settings = false;
-            }
-
-            if (state.calibrate) {
-                try {
-                    camMan.calibrate(window_name, config.output_location,
-                                     15000);
-                    state.calibrate = false;
-                } catch (const std::exception &e) {
-                    std::cerr << "Calibration failed; " << e.what() << '\n';
-                }
-            }
-
-            std::cerr << "hello" << std::endl;
-            auto returned_state = camMan.grab();
-            if (returned_state == sl::ERROR_CODE::SUCCESS) {
-                try {
-                    camMan.imageProcessing(false);
-                    // cv::Mat ROI =
-                    // camMan.image_depth_cv(camMan.image_mask_cv);
-                    // imshow(window_name, camMan.image_depth_cv);
-                    int height = camMan.image_depth_cv.rows;
-                    int width = camMan.image_depth_cv.cols;
-                    cv::Mat transformed(height, width, CV_8UC1);
-                    cv::warpPerspective(camMan.image_depth_cv, transformed,
-                                        camMan.homography,
-                                        cv::Size(width, height));
-                    imshow(window_name, transformed);
-                } catch (const std::exception &e) {
-                    std::cerr << "Image processing failed; " << e.what()
-                              << '\n';
-                }
-            }
-
-            state.key = cv::waitKey(10);
-
-            // TODO color coding for objects via tamplates
-
-            state.action();
-            // ! calibration
-        }
-
-        camMan.~CameraManager();
-    }
-
+    Loop loop(settings, printer, logger, image_processor);
+    loop.Process();
     return EXIT_SUCCESS;
 }
 

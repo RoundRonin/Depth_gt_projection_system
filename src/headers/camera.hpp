@@ -5,9 +5,9 @@
 #include <string>
 
 #include "../../include/sl_utils.hpp"
+#include "../headers/settings.hpp"
 #include "../impl/object_recognition.cpp"
 #include "../impl/utils.cpp"
-#include "opencv2/opencv.hpp"
 
 namespace zed {
 
@@ -38,6 +38,7 @@ class CameraManager {
 
     cv::Mat homography;
 
+    CameraManager() = default;
     CameraManager(Printer printer) : m_printer(printer){};
 
     // TODO sl::ERROR?

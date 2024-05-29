@@ -1,30 +1,57 @@
 {
     "configurations": [
         {
-            "name": "Total",
-            "save_logs": true,
-            "time": true,
-            "recurse": false,
-            "zlimit": 10,
-            "mindistance": 100,
-            "medium": 10,
-            "minarea": 10000,
-            "maxobjects": 10,
-            "output": "./Result",
-            "config": "./Config",
-            "fillmode": false,
-            "threshold": 50,
-            "threshold-texture": 100,
-            "depthmode": "ULTRA",
-            "cameradistance": 20,
-            "debug-level": "brief"
+            "name": "Default",
+            "save_logs": "1",
+            "measure_time": "1",
+            "output_location": "./Result/",
+            "config_location": "./Config/",
+            "z_limit": "10",
+            "min_distance": "100",
+            "medium_limit": "10",
+            "min_area": "10000",
+            "max_objects": "10",
+            "threshold": "50",
+            "texture_threshold": "100",
+            "depth_mode": "3",
+            "cameradistance": "20",
+            "debug_level": "brief",
+            "erodil": [
+                {
+                    "type": "erosion",
+                    "distance": 5,
+                    "size": 5
+                },
+                {
+                    "type": "dilation",
+                    "distance": 5,
+                    "size": 5
+                },
+                {
+                    "type": "erosion",
+                    "distance": 3,
+                    "size": 3
+                },
+                {
+                    "type": "dilation",
+                    "distance": 3,
+                    "size": 3
+                }
+            ],
+            "HoughLinesP": {
+                "rho": 1,
+                "theta_denom": 180,
+                "threshold": 20,
+                "min_line_length": 60,
+                "max_line_gap": 10
+            }
         },
         {
-            "name": "Total erodil hough",
+            "name": "Default2",
             "save_logs": true,
-            "maesure_time": true,
-            "output_location": "./Result",
-            "config_location": "./Config",
+            "measure_time": true,
+            "output_location": "./Result/",
+            "config_location": "./Config/",
             "recurse": false,
             "z_limit": 10,
             "min_distance": 100,
