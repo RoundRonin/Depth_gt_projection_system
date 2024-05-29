@@ -16,6 +16,8 @@ set (CMAKE_EXPORT_COMPILE_COMMANDS 1)
 cmake_policy(SET CMP0153 OLD)
 cmake_policy(SET CMP0146 OLD)
 
+# TODO add jq as requirement
+
 # add_compile_options(-fsanitize=address)
 # add_link_options(-fsanitize=address)
 
@@ -38,7 +40,23 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # enable_testing()
 
-# include(FetchContent)
+
+
+include(FetchContent)
+FetchContent_Declare(
+  json
+  URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+)
+FetchContent_GetProperties(json)
+if(NOT json_POPULATED)
+  FetchContent_Populate(json)
+  add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR})
+endif()
+
+
+# FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+# FetchContent_MakeAvailable(json)
+
 # FetchContent_Declare(
 #   googletest
 #   URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
@@ -56,7 +74,7 @@ link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 link_directories(${OpenCV_LIBRARY_DIRS}) # CV
 
-ADD_LIBRARY("${PROJECT_NAME}_testing" src/main.cpp)
+# ADD_LIBRARY("${PROJECT_NAME}_testing" src/main.cpp)
 ADD_EXECUTABLE(${PROJECT_NAME} include/sl_utils.hpp src/main.cpp) ## !
 
 if (LINK_SHARED_ZED)
@@ -67,8 +85,10 @@ endif()
 
 TARGET_LINK_LIBRARIES(
     ${PROJECT_NAME} 
+    PRIVATE
+    nlohmann_json::nlohmann_json
+    PUBLIC
     ${ZED_LIBS} 
     ${OpenCV_LIBRARIES} # CV
 )
-
 # add_subdirectory(test)

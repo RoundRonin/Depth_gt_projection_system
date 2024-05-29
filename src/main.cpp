@@ -97,22 +97,34 @@ int main(int argc, char **argv) {
             state.idx = 0;
 
             if (state.calibrate) {
-                camMan.calibrate(window_name, settings.outputLocation, 15000);
-                state.calibrate = false;
+                try {
+                    camMan.calibrate(window_name, settings.outputLocation,
+                                     15000);
+                    state.calibrate = false;
+                } catch (const std::exception &e) {
+                    std::cerr << "Calibration failed; " << e.what() << '\n';
+                }
             }
 
             std::cerr << "hello" << std::endl;
             auto returned_state = camMan.grab();
             if (returned_state == sl::ERROR_CODE::SUCCESS) {
-                camMan.imageProcessing(false);
-                // cv::Mat ROI = camMan.image_depth_cv(camMan.image_mask_cv);
-                // imshow(window_name, camMan.image_depth_cv);
-                int height = camMan.image_depth_cv.rows;
-                int width = camMan.image_depth_cv.cols;
-                cv::Mat transformed(height, width, CV_8UC1);
-                cv::warpPerspective(camMan.image_depth_cv, transformed,
-                                    camMan.homography, cv::Size(width, height));
-                imshow(window_name, transformed);
+                try {
+                    camMan.imageProcessing(false);
+                    // cv::Mat ROI =
+                    // camMan.image_depth_cv(camMan.image_mask_cv);
+                    // imshow(window_name, camMan.image_depth_cv);
+                    int height = camMan.image_depth_cv.rows;
+                    int width = camMan.image_depth_cv.cols;
+                    cv::Mat transformed(height, width, CV_8UC1);
+                    cv::warpPerspective(camMan.image_depth_cv, transformed,
+                                        camMan.homography,
+                                        cv::Size(width, height));
+                    imshow(window_name, transformed);
+                } catch (const std::exception &e) {
+                    std::cerr << "Image processing failed; " << e.what()
+                              << '\n';
+                }
             }
 
             state.key = cv::waitKey(10);

@@ -167,14 +167,21 @@ class CameraManager {
 
             std::cout << std::endl << maxArea << std::endl;
 
-            if (maxArea < minArea)
+            if (maxArea < minArea) {
                 continue;
-            else
-                break;
+            } else {
+                image_mask_cv =
+                    imageProcessor.mask_mats.at(biggestMaskIdx).mat.clone();
+                try {
+                    deduceHomography();
+                    break;
+                } catch (const std::exception &e) {
+                    std::cerr << e.what() << '\n';
+                    continue;
+                }
+            }
         }
 
-        image_mask_cv = imageProcessor.mask_mats.at(biggestMaskIdx).mat.clone();
-        deduceHomography();
         imageProcessor.pruneMasks();
         (*image_mask) = cvMat2slMat(image_mask_cv);
         (*image_mask).write((saveLocation + "ROI_mask.png").c_str());
@@ -230,12 +237,24 @@ class CameraManager {
         int width = image_mask_cv.cols;
         int height = image_mask_cv.rows;
 
-        vector<Point> found_corners = findCorners();
+        cv::Mat out(image_mask_cv);
+        vector<Point> found_corners;
+        auto returned_status = findCorners(out, found_corners);
+
+        if (returned_status != sl::ERROR_CODE::SUCCESS) {
+            imwrite("./Result/input.png", out);
+            throw std::runtime_error("Failed to find corners");
+        }
+
+        // TODO sort ("rotate") points before findHomography
+
         vector<Point> default_corners = {Point(width, 0), Point(width, height),
                                          Point(0, 0), Point(0, height)};
         if (found_corners.size() == 4) {
             homography = findHomography(found_corners, default_corners);
         }
+
+        imwrite("./Result/input.png", out);
     }
 
     Vec3f calcParams(Point2f p1,
@@ -270,7 +289,7 @@ class CameraManager {
         return (Point(x, y));
     }
 
-    vector<Point> findCorners() {
+    sl::ERROR_CODE findCorners(cv::Mat &out, vector<Point> &corners) {
         // Guaranteed to have one shape at this point
         int width = image_mask_cv.cols;
         int height = image_mask_cv.rows;
@@ -285,6 +304,7 @@ class CameraManager {
 
         vector<Vec4i> lines;
         drawContours(image_hull, hull, 0, Scalar(255));
+        imwrite("./Result/hull.png", image_hull);
         cv::HoughLinesP(image_hull, lines, 1, CV_PI / 180, 20, 60, 10);
         cout << "lines size:" << lines.size() << endl;
 
@@ -296,7 +316,7 @@ class CameraManager {
                                             Point(lines[l][2], lines[l][3])));
             }
 
-            vector<Point> corners;
+            // vector<Point> corners;
             for (int i = 0; i < params.size(); i++) {
                 for (int j = i; j < params.size();
                      j++)  // j starts at i so we don't have duplicated points
@@ -309,14 +329,17 @@ class CameraManager {
                     }
                 }
             }
+            for (int i = 0; i < corners.size(); i++) {
+                circle(out, corners[i], 3, Scalar(122, 122, 122));
+            }
 
             if (corners.size() == 4)  // we have the 4 final corners
             {
-                return (corners);
+                return sl::ERROR_CODE::SUCCESS;
             }
         }
 
-        return (vector<Point>());
+        return sl::ERROR_CODE::FAILURE;
     }
 };
 

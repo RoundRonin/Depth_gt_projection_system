@@ -1,0 +1,73 @@
+{
+    "configurations": [
+        {
+            "name": "Total",
+            "help": true,
+            "save": true,
+            "time": true,
+            "recurse": false,
+            "zlimit": 10,
+            "mindistance": 100,
+            "medium": 10,
+            "minarea": 10000,
+            "maxobjects": 10,
+            "output": "./Result",
+            "config": "./Config",
+            "fillmode": false,
+            "threshold": 50,
+            "threshold-texture": 100,
+            "depthmode": "ULTRA",
+            "cameradistance": 20,
+            "debug-level": "brief"
+        },
+        {
+            "name": "Total erodil hough",
+            "help": true,
+            "save": true,
+            "time": true,
+            "recurse": false,
+            "zlimit": 10,
+            "mindistance": 100,
+            "medium": 10,
+            "minarea": 10000,
+            "maxobjects": 10,
+            "output": "./Result",
+            "config": "./Config",
+            "fillmode": false,
+            "threshold": 50,
+            "threshold-texture": 100,
+            "depthmode": "ULTRA",
+            "cameradistance": 20,
+            "debug-level": "brief",
+            "erodil": [
+                {
+                    "type": "erosion",
+                    "distance": 5,
+                    "size": 5
+                },
+                {
+                    "type": "dilation",
+                    "distance": 5,
+                    "size": 5
+                },
+                {
+                    "type": "erosion",
+                    "distance": 3,
+                    "size": 3
+                },
+                {
+                    "type": "dilation",
+                    "distance": 3,
+                    "size": 3
+                }
+            ],
+            "HoughLinesP": {
+                "rho": 1,
+                "theta_denom": 180,
+                "threshold": 20,
+                "minLineLength": 60,
+                "maxLineGap": 10
+            }
+        }
+    ]
+}
