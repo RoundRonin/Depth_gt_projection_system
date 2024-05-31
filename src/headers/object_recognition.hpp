@@ -1,32 +1,53 @@
 #ifndef OBJECT_RECOGNITION_HPP
 #define OBJECT_RECOGNITION_HPP
 
+#include <vector>
+
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/opencv.hpp"
-#include <vector>
-
 #include "utils.hpp"
 
-class Image {
-    cv::Mat m_objects;
+// TODO restructure so that there would be initparams analog
+class ImageProcessor {
     std::string m_out_path;
     uchar m_zlimit;
     uchar m_min_distance;
     uchar m_medium_limit;
-    Logger m_log;
+    Logger &m_log;
+    Printer &m_printer;
 
-  public:
-    cv::Mat image;
-    std::vector<cv::Mat> mask_mats;
+   public:
+    // TODO temp
+    cv::Mat m_objects;
+
+    cv::Mat *image;
+
+    struct MatWithInfo {
+        cv::Mat mat;
+        int area = 0;
+    };
+
+    std::vector<MatWithInfo> mask_mats;
 
     struct Stats {
         int &isited;
         int &amount;
     };
 
-  public:
-    Image(std::string path, std::string output_location, const Logger &log);
+   public:
+    ImageProcessor(std::string output_location, Logger &log, Printer &printer);
+
+    // TODO check if image on the path exists, throw exception if it doesn't
+    ImageProcessor(std::string path, std::string output_location, Logger &log,
+                   Printer &printer);
+
+    ImageProcessor(cv::Mat image, std::string output_location, Logger &log,
+                   Printer &printer);
+
+    // TODO check if image is present before doing anything
+    void getImage(std::string path);
+    void getImage(cv::Mat *new_image);
 
     void write(std::string path);
 
@@ -38,7 +59,9 @@ class Image {
                      uchar medium_limit = 10, int minDots = 1000,
                      int maxObjects = 5, bool recurse = false);
 
-  private:
+    void pruneMasks();
+
+   private:
     int directions[4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
 
     struct PointDirs {
@@ -67,7 +90,7 @@ class Image {
             } else if (current_direction == Dirs::UP) {
                 return toUP;
             }
-            return {cv::Point(-100, -100)}; // TODO return error
+            return {cv::Point(-100, -100)};  // TODO return error
         }
     };
 

@@ -1,10 +1,11 @@
 #include <gtest/gtest.h>
 
-#include "../src/object_recognition.hpp"
-#include "../src/utils.hpp"
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/matx.hpp>
 #include <opencv2/core/types.hpp>
+
+#include "../src/headers/object_recognition.hpp"
+#include "../src/headers/utils.hpp"
 
 double getPointToPlaneDistance(cv::Vec3d plane_point, cv::Vec3d plane_vector,
                                cv::Vec3d point) {
@@ -51,7 +52,6 @@ void getPointVector() {
 }
 
 TEST(VectorSuit, Distance) {
-
     double dist = getPointToPlaneDistance({0, 0, 0}, {0, 0, 1}, {0, 0, 5});
     EXPECT_EQ(5, dist);
     double dist2 = getPointToPlaneDistance({1, 1, 1}, {5, 6, 1}, {7, 4, 5});

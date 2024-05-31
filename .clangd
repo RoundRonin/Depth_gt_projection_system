@@ -6,6 +6,10 @@ CompileFlags:
       -I/./**,
       -I/usr/include/,
       -I/usr/include/linux,
+      -I/usr/local/zed/include,
+      -I/usr/local/zed/include/sl,
+      -I/usr/local/cuda/bin,
+      -I/usr/local/cuda/include
     ]
   # Add:  [
   #   ],

@@ -1,4 +1,4 @@
-#include "templategen.hpp"
+#include "../headers/templategen.hpp"
 
 Templates::Templates(cv::Mat mask) {
     width = mask.cols;
@@ -47,6 +47,17 @@ cv::Mat Templates::chessBoard(int iter, cv::Mat mask, int speedX, int speedY) {
             }
         }
     }
+
+    cv::Mat masked;
+    cv::bitwise_and(frame, frame, masked, mask);
+
+    return masked;
+}
+
+cv::Mat Templates::solidColor(cv::Mat mask, cv::Scalar color) {
+    cv::Mat frame = cv::Mat::zeros(height, width, CV_8UC3);
+
+    rectangle(frame, cv::Point(0, 0), cv::Point(width, height), color, -1);
 
     cv::Mat masked;
     cv::bitwise_and(frame, frame, masked, mask);
