@@ -56,7 +56,7 @@ go_svo:
 
 .phony: go_stream
 go_stream: 
-	./ImageProcessing_Release --brief -lt -Z 10 -A 16000 -B 15 -D 30 -M 20 -T 50 -U 1
+	./ImageProcessing_Release --brief -lt -Z 10 -A 16000 -B 15 -D 30 -M 20 -T 50 -U 3
 
 .phony: clean 
 clean:

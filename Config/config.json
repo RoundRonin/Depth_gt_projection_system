@@ -39,7 +39,7 @@
                 }
             ],
             "HoughLinesP": {
-                "rho": 1,
+                "rho": 5,
                 "theta_denom": 140,
                 "threshold": 20,
                 "min_line_length": 60,
