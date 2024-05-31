@@ -112,8 +112,8 @@ class CameraManager {
         }
     }
 
-    void calibrate(std::string windowName, std::string saveLocation,
-                   int minArea) {
+    void calibrate(std::string windowName, InteractiveState &state,
+                   std::string saveLocation, int minArea) {
         // TODO provide keyboard controller
         if (!m_zed.isOpened()) throw("Camera is not opened");
 
@@ -124,13 +124,13 @@ class CameraManager {
                       cv::Scalar(255, 255, 255, 255));
 
         cv::imshow(windowName, white);
-        cv::waitKey(100);
+        state.key = cv::waitKey(100);
         int biggestMaskIdx = 0;
-        while (true) {
+        while (state.calibrate) {
             imageProcessor.pruneMasks();
 
             cv::imshow(windowName, white);
-            cv::waitKey(100);
+            state.key = cv::waitKey(100);
 
             auto returned_state = grab();
             if (returned_state != sl::ERROR_CODE::SUCCESS)
@@ -174,18 +174,23 @@ class CameraManager {
                     imageProcessor.mask_mats.at(biggestMaskIdx).mat.clone();
                 try {
                     deduceHomography();
+                    state.calibrate = false;
                     break;
                 } catch (const std::exception &e) {
                     std::cerr << e.what() << '\n';
                     continue;
                 }
             }
+
+            state.action();
         }
 
-        imageProcessor.pruneMasks();
-        (*image_mask) = cvMat2slMat(image_mask_cv);
-        (*image_mask).write((saveLocation + "ROI_mask.png").c_str());
-        m_zed.setRegionOfInterest(*image_mask);
+        if (state.calibrate) {
+            imageProcessor.pruneMasks();
+            (*image_mask) = cvMat2slMat(image_mask_cv);
+            (*image_mask).write((saveLocation + "ROI_mask.png").c_str());
+            m_zed.setRegionOfInterest(*image_mask);
+        }
     }
 
     ~CameraManager() {

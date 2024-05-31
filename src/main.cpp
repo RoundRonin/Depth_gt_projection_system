@@ -75,7 +75,6 @@ class Loop {
     void zedProc() { zed::CameraManager cam_man(m_printer); }
 
     void initInteractivity() {
-        m_state.printHelp();
         window_name = "Projection";
         cv::namedWindow(window_name, cv::WindowFlags::WINDOW_NORMAL);
         cv::setWindowProperty(window_name,
@@ -91,15 +90,16 @@ class Loop {
         cam_man.openCam(m_settings.config);
         // camMan.imageProcessing(false);
 
-        while (m_state.key != 'q') {
-            m_state.next = 0;
+        m_state.printHelp();
+        while (m_state.keep_running) {
+            m_state.next = false;
             m_state.idx = 0;
 
             if (m_state.load_settings) loadSettings(cam_man);
             if (m_state.restart_cam) restartCamera(cam_man);
             if (m_state.calibrate) {
                 try {
-                    cam_man.calibrate(window_name,
+                    cam_man.calibrate(window_name, m_state,
                                       m_settings.config.output_location, 15000);
                     m_state.calibrate = false;
                 } catch (const std::exception &e) {

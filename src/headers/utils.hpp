@@ -13,9 +13,14 @@
 
 struct InteractiveState {
     char key;
+
+    // perpetual states (related to loops)
+    bool keep_running = true;
     bool pause = false;
-    bool next = false;
     bool calibrate = false;
+
+    // one-time check states
+    bool next = false;
     bool load_settings = false;
     bool restart_cam = false;
     int idx = 0;
@@ -23,19 +28,24 @@ struct InteractiveState {
     void printHelp() {
         std::cout << " Press 'q' to exit" << std::endl;
         std::cout << " Press 'p' or ' ' to pasue" << std::endl;
-        std::cout << " Press 'c' to calibrate" << std::endl;
+        std::cout << " Press 'c' to switch calibration mode" << std::endl;
         std::cout << " Press 'l' to load settings from config" << std::endl;
         std::cout << " Press 'r' to restart camera" << std::endl;
     }
 
     void action() {
-        if (key == 'p') pause = !pause;
+        if (key == 'q') {
+            keep_running = false;
+            calibrate = false;
+            pause = false;
+        }
+        if (key == 'p' || key == ' ') pause = !pause;
         while (pause && !next) {
             key = cv::waitKey(0);
             if (key == 'p') pause = !pause;
             if (key == ' ' || key == 'q') next = true;
         }
-        if (key == 'c') calibrate = true;
+        if (key == 'c') calibrate = !calibrate;
         if (key == 'l') load_settings = true;
         if (key == 'r') restart_cam = true;
     }

@@ -23,6 +23,7 @@ using namespace std;
 // TODO probably need to make it unchangable from outside
 struct Config {
     enum SOURCE_TYPE { IMAGE, SVO, STREAM };
+    enum TYPE { BOOL, STRING, INT, UCHAR };
     SOURCE_TYPE type = SOURCE_TYPE::STREAM;
     bool from_config = false;
 
@@ -52,39 +53,57 @@ struct Config {
     struct Description {
         option opt;
         string desc = "NO DESCRIPTION";
+        TYPE type;
     };
 
     std::vector<Description> descriptions = {
-        {{"save_logs", no_argument, 0, 'l'}, "toggle log saving"},
-        {{"measure_time", no_argument, 0, 't'}, "toggle time measurement"},
+        {{"save_logs", no_argument, 0, 'l'}, "toggle log saving", TYPE::BOOL},
+        {{"measure_time", no_argument, 0, 't'},
+         "toggle time measurement",
+         TYPE::BOOL},
         {{"output_location", required_argument, 0, 'O'},
-         "define output location"},
+         "define output location",
+         TYPE::STRING},
         {{"config_location", required_argument, 0, 'C'},
-         "define config directory"},
-        {{"config_name", required_argument, 0, 'N'}, "define config name"},
+         "define config directory",
+         TYPE::STRING},
+        {{"config_name", required_argument, 0, 'N'},
+         "define config name",
+         TYPE::STRING},
 
-        {{"recurse", no_argument, 0, 'r'}, "toggle recursion [Dangerous]"},
+        {{"recurse", no_argument, 0, 'r'},
+         "toggle recursion [Dangerous]",
+         TYPE::BOOL},
         {{"z_limit", required_argument, 0, 'Z'},
-         "define max difference between two points [0, 255]"},
+         "define max difference between two points [0, 255]",
+         TYPE::UCHAR},
         {{"min_distance", required_argument, 0, 'D'},
-         "define min distance [0, 255]"},
+         "define min distance [0, 255]",
+         TYPE::UCHAR},
         {{"medium_limit", required_argument, 0, 'M'},
-         "define medium value [0, 255]"},
+         "define medium value [0, 255]",
+         TYPE::UCHAR},
         {{"min_area", required_argument, 0, 'A'},
-         "define minimum area [int32]"},
+         "define minimum area [int32]",
+         TYPE::INT},
         {{"max_objects", required_argument, 0, 'B'},
-         "define maximum amount objects [int32]"},
+         "define maximum amount objects [int32]",
+         TYPE::INT},
 
-        {{"fill_mode", no_argument, 0, 'f'}, "toggle fill mode"},
+        {{"fill_mode", no_argument, 0, 'f'}, "toggle fill mode", TYPE::BOOL},
         {{"threshold", required_argument, 0, 'T'},
-         "define depth map theshold [0 100]"},
+         "define depth map theshold [0 100]",
+         TYPE::INT},
         {{"texture_threshold", required_argument, 0, 'X'},
-         "define texture theshold [0 100]"},
+         "define texture theshold [0 100]",
+         TYPE::INT},
         {{"depth_mode", required_argument, 0, 'U'},
          "define depth mode: 0-6: NONE, PERFORMANCE, QUALITY, ULTRA, "
-         "NEURAL, NEURAL+, LAST "},
+         "NEURAL, NEURAL+, LAST ",
+         TYPE::INT},
         {{"camera_diatance", required_argument, 0, 'R'},
-         "define camera distance [0 20]"},
+         "define camera distance [0 20]",
+         TYPE::INT},
     };
 
     // allows to set and/OR read parameter by name/flag
@@ -120,10 +139,10 @@ struct Config {
             if (set) recurse = true;
             return recurse ? "true" : "false";
         } else if (check(6)) {
-            if (set) z_limit = atoi(optarg);
+            if (set) z_limit = atoi(value);
             return to_string(z_limit);
         } else if (check(7)) {
-            if (set) min_distance = atoi(optarg);
+            if (set) min_distance = atoi(value);
             return to_string(min_distance);
         } else if (check(8)) {
             if (set) medium_limit = atoi(value);
@@ -163,6 +182,14 @@ struct Config {
         }
 
         return values;
+    }
+
+    TYPE getType(string parameter_name) {
+        for (auto description : descriptions) {
+            if (description.opt.name == parameter_name) return description.type;
+        }
+
+        throw runtime_error("No such parameter");
     }
 
     Description getDescription(string parameter_name) {
@@ -307,49 +334,105 @@ class Settings {
         // Access the "configs" array
         auto configurations = json["configurations"];
 
+        bool found_config = false;
         // Find the config named "hello"
         for (const auto &configuration : configurations) {
+            auto getValue = [configuration](string param,
+                                            Config::TYPE type) -> string {
+                switch (type) {
+                    case Config::BOOL: {
+                        bool json_value = configuration[param].get<bool>();
+                        return json_value ? "true" : "false";
+                        break;
+                    }
+                    case Config::STRING: {
+                        string json_value = configuration[param].get<string>();
+                        return json_value;
+                        break;
+                    }
+                    case Config::INT: {
+                        int json_value = configuration[param].get<int>();
+                        return to_string(json_value);
+                        break;
+                    }
+                    case Config::UCHAR: {
+                        uchar json_value = configuration[param].get<uchar>();
+                        return to_string(json_value);
+                        break;
+                    }
+                    default:
+                        break;
+                }
+
+                throw logic_error("Something went wrong with switch!");
+            };
+
             if (configuration["name"] == config.config_name) {
                 for (auto description : config.descriptions) {
                     string param = description.opt.name;
-                    try {
-                        string json_value = configuration[param].get<string>();
-                        config.setParameter(param, 0, json_value.data(), false);
-                    } catch (const std::exception &e) {
-                        std::cerr << e.what() << " Field \"" << param << "\""
-                                  << '\n';
+                    Config::TYPE type = description.type;
+                    if (configuration.contains(param)) {
+                        try {
+                            string value = getValue(param, type);
+                            // string json_value =
+                            // configuration[param].get<string>();
+                            config.setParameter(param, 0, value.data(), false);
+
+                        } catch (const std::exception &e) {
+                            std::cerr << e.what() << " Field \"" << param
+                                      << "\"" << '\n';
+                        }
+                    } else {
+                        std::cerr << "json doesn't contain " << param
+                                  << std::endl;
                     }
                 }
 
-                string level_word = json["debug_level"].get<string>();
-                int debug_level = 0;
-                if (level_word == "production") {
-                    debug_level = 0;
-                } else if (level_word == "brief") {
-                    debug_level = 1;
-                } else if (level_word == "verbose") {
-                    debug_level = 2;
-                }
+                string param = "debug_level";
+                if (configuration.contains(param)) {
+                    string level_word =
+                        configuration["debug_level"].get<string>();
+                    int debug_level = 0;
+                    if (level_word == "production") {
+                        debug_level = 0;
+                    } else if (level_word == "brief") {
+                        debug_level = 1;
+                    } else if (level_word == "verbose") {
+                        debug_level = 2;
+                    }
 
-                config.debug_level = debug_level;
+                    config.debug_level = debug_level;
+                } else {
+                    std::cerr << "json doesn't contain " << param << std::endl;
+                }
 
                 auto values = config.getStringValues();
                 for (auto value : values) {
                     std::cout << value.first << ": " << value.second
                               << std::endl;
                 }
+                std::cout << std::endl;
 
-                // Parse HoughLinesP
-                hough_params.rho = json["HoughLinesP"]["rho"].get<int>();
-                hough_params.theta_denom =
-                    json["HoughLinesP"]["theta_denom"].get<int>();
-                hough_params.threshold =
-                    json["HoughLinesP"]["threshold"].get<int>();
-                hough_params.min_line_length =
-                    json["HoughLinesP"]["min_line_length"].get<int>();
-                hough_params.max_line_gap =
-                    json["HoughLinesP"]["max_line_gap"].get<int>();
+                try {
+                    // Parse HoughLinesP
+                    hough_params.rho =
+                        configuration["HoughLinesP"]["rho"].get<int>();
+                    hough_params.theta_denom =
+                        configuration["HoughLinesP"]["theta_denom"].get<int>();
+                    hough_params.threshold =
+                        configuration["HoughLinesP"]["threshold"].get<int>();
+                    hough_params.min_line_length =
+                        configuration["HoughLinesP"]["min_line_length"]
+                            .get<int>();
+                    hough_params.max_line_gap =
+                        configuration["HoughLinesP"]["max_line_gap"].get<int>();
 
+                } catch (const std::exception &e) {
+                    std::cerr << e.what() << '\n';
+                }
+
+                std::cout << "Hough Lines P params " << hough_params.rho
+                          << std::endl;
                 std::cout << "rho: " << hough_params.rho << std::endl;
                 std::cout << "theta_denom: " << hough_params.theta_denom
                           << std::endl;
@@ -359,24 +442,30 @@ class Settings {
                           << std::endl;
                 std::cout << "max_line_gap: " << hough_params.max_line_gap
                           << std::endl;
+                std::cout << std::endl;
 
                 // Parse erodil
                 erodil.clear();
-                for (const auto &entry : json["erodil"]) {
-                    ErosionDilation ed;
-                    ed.type = (entry["type"] == "erosion")
-                                  ? ErosionDilation::Erosion
-                                  : ErosionDilation::Dilation;
-                    ed.distance = entry["distance"].get<uchar>();
-                    ed.size = entry["size"].get<uchar>();
-                    erodil.push_back(ed);
+                for (const auto &entry : configuration["erodil"]) {
+                    try {
+                        ErosionDilation ed;
+                        ed.type = (entry["type"] == "erosion")
+                                      ? ErosionDilation::Erosion
+                                      : ErosionDilation::Dilation;
+                        ed.distance = entry["distance"].get<uchar>();
+                        ed.size = entry["size"].get<uchar>();
+                        erodil.push_back(ed);
+                    } catch (const std::exception &e) {
+                        std::cerr << e.what() << '\n';
+                    }
                 }
 
                 std::cout << "Erodil size: " << erodil.size() << std::endl;
-            } else {
-                std::cout << "No config named " << config.config_name
-                          << std::endl;
+                found_config = true;
             }
+
+            if (!found_config)
+                throw runtime_error("No config named " + config.config_name);
         }
     }
 
