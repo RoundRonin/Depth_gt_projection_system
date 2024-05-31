@@ -211,11 +211,11 @@ struct ErosionDilation {
 };
 
 struct HoughLinesPsets {
-    int rho = 1;
-    int theta_denom = 180;
+    int rho = 5;
+    int theta_denom = 140;
     int threshold = 20;
     int min_line_length = 60;
-    int max_line_gap = 1;
+    int max_line_gap = 10;
 };
 
 class Settings {
