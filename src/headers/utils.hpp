@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <opencv2/highgui.hpp>
 #include <stack>
 #include <string>
 #include <vector>
