@@ -131,6 +131,7 @@ class CameraManager {
 
             cv::imshow(windowName, white);
             state.key = cv::waitKey(100);
+            state.action();
 
             auto returned_state = grab();
             if (returned_state != sl::ERROR_CODE::SUCCESS)
@@ -181,8 +182,6 @@ class CameraManager {
                     continue;
                 }
             }
-
-            state.action();
         }
 
         if (state.calibrate) {
