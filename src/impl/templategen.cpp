@@ -1,12 +1,18 @@
 #include "../headers/templategen.hpp"
 
-Templates::Templates(cv::Mat mask) {
-    width = mask.cols;
-    height = mask.rows;
+Templates::Templates(cv::Size resolution) {
+    width = resolution.width;
+    height = resolution.height;
+}
+
+void Templates::setResolution(cv::Size resolution) {
+    width = resolution.width;
+    height = resolution.height;
 }
 
 cv::Mat Templates::gradient(int iter, cv::Mat mask, int a) {
-    cv::Mat frame = cv::Mat::zeros(height, width, CV_8UC3);
+    CV_Assert(mask.type() == CV_8UC1);
+    cv::Mat frame = cv::Mat::zeros(mask.size(), CV_8UC3);
     uchar r = 255 * iter * a / (10 * 60);
     uchar g = 255 * (10 * 60 - iter * a) / (10 * 60);
     uchar b = 0;
@@ -20,8 +26,11 @@ cv::Mat Templates::gradient(int iter, cv::Mat mask, int a) {
               cv::Scalar(b, g, r), -1);
 
     cv::Mat masked;
-    cv::bitwise_and(frame, frame, masked, mask);
+    cv::Size size = mask.size();
 
+    CV_Assert(mask.size() == frame.size());
+
+    cv::bitwise_and(frame, frame, masked, mask);
     return masked;
 }
 

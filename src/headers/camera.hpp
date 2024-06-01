@@ -116,24 +116,24 @@ class CameraManager {
         }
     }
 
-    void calibrate(std::string windowName, InteractiveState &state,
-                   std::string saveLocation, int minArea) {
+    void calibrate(std::string window_name, InteractiveState &state,
+                   std::string save_location, int min_area) {
         // TODO provide keyboard controller
         if (!m_zed.isOpened()) throw("Camera is not opened");
 
         Logger logger;
-        ImageProcessor imageProcessor(saveLocation, logger, m_printer);
+        ImageProcessor imageProcessor(save_location, logger, m_printer);
 
         cv::Mat white(m_resolution.height, m_resolution.width, CV_8UC4,
                       cv::Scalar(255, 255, 255, 255));
 
-        cv::imshow(windowName, white);
+        cv::imshow(window_name, white);
         state.key = cv::waitKey(100);
         int biggestMaskIdx = 0;
         while (state.calibrate) {
             imageProcessor.pruneMasks();
-
-            cv::imshow(windowName, white);
+            cout << "Calibrating!" << endl;
+            cv::imshow(window_name, white);
             state.key = cv::waitKey(100);
             state.action();
 
@@ -189,22 +189,28 @@ class CameraManager {
             }
 
             imageProcessor.getImage(&image_gray_cv);
-            imageProcessor.findObjects(10, max - (max - mean) / 2, 10, minArea,
-                                       4, false);
+            Config cfg{.z_limit = 10,
+                       .min_distance = uchar(max - uchar((max - mean) / 2)),
+                       .medium_limit = 10,
+                       .min_area = min_area,
+                       .max_objects = 4,
+                       .recurse = false};
+            imageProcessor.setParametersFromSettings(cfg);
+            imageProcessor.findObjects();
 
             int area = 0;
-            int maxArea = 0;
+            int max_area = 0;
             for (int i = 0; i < imageProcessor.mask_mats.size(); i++) {
                 area = imageProcessor.mask_mats.at(i).area;
-                if (area > maxArea) {
-                    maxArea = area;
+                if (area > max_area) {
+                    max_area = area;
                     biggestMaskIdx = i;
                 }
             }
 
-            std::cout << std::endl << maxArea << std::endl;
+            std::cout << std::endl << max_area << std::endl;
 
-            if (maxArea < minArea) {
+            if (max_area < min_area) {
                 continue;
             } else {
                 image_mask_cv =
@@ -223,7 +229,7 @@ class CameraManager {
         if (state.calibrate) {
             imageProcessor.pruneMasks();
             (*image_mask) = cvMat2slMat(image_mask_cv);
-            (*image_mask).write((saveLocation + "ROI_mask.png").c_str());
+            (*image_mask).write((save_location + "ROI_mask.png").c_str());
             m_zed.setRegionOfInterest(*image_mask);
         }
     }
@@ -241,7 +247,8 @@ class CameraManager {
         m_initParams.coordinate_system =
             sl::COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
         m_initParams.sdk_verbose = 1;  // TODO cli?
-        m_initParams.camera_resolution = sl::RESOLUTION::AUTO;
+        m_initParams.camera_resolution =
+            static_cast<sl::RESOLUTION>(config.camera_resolution);
         m_initParams.coordinate_units = sl::UNIT::METER;
         m_initParams.depth_maximum_distance = config.camera_diatance;
         // TODO check for files existance

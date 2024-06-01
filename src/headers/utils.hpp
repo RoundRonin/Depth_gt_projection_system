@@ -15,13 +15,15 @@
 struct InteractiveState {
     char key;
 
+    enum Mode { NONE, WHITE, CHESS, DEPTH, OBJECTS, TEMPLATES };
+    Mode mode = NONE;
     // perpetual states (related to loops)
     bool keep_running = true;
     bool pause = false;
     bool calibrate = false;
     bool grab = true;
     bool process = true;
-    bool apply_templates = true;
+    // bool apply_templates = true;
 
     // one-time check states
     bool next = false;
@@ -29,13 +31,17 @@ struct InteractiveState {
     bool restart_cam = false;
     int idx = 0;
 
+    // other values
+    int scale_mode = 0;
+    vector<pair<string, int>> scales{{"brightness", 10}, {"alpha", 1}};
+
     void printHelp() {
         std::cout << " Press 'q' to exit" << std::endl;
         std::cout << " Press 'p' or ' ' to pasue" << std::endl;
         std::cout << " Press 'c' to switch calibration mode" << std::endl;
         std::cout << " Press 'g' to switch grabbing" << std::endl;
         std::cout << " Press 'h' to switch processing" << std::endl;
-        std::cout << " Press 't' to switch templates" << std::endl;
+        // std::cout << " Press 't' to switch templates" << std::endl;
         std::cout << " " << std::endl;
         std::cout << " Press 'l' to load settings from config" << std::endl;
         std::cout << " Press 'r' to restart camera" << std::endl;
@@ -53,8 +59,20 @@ struct InteractiveState {
         if (key == 'p' || key == ' ') pause = !pause;
         if (key == 'c') calibrate = !calibrate;
         if (key == 'g') grab = !grab;
-        if (key == 'h') process = !process;
-        if (key == 't') apply_templates = !apply_templates;
+        // if (key == 'h') process = !process;
+        // if (key == 't') apply_templates = !apply_templates;
+
+        if (key == 'm') {
+            scale_mode = (scale_mode + 1) % scales.size();
+        }
+        if (key == '+') scales.at(scale_mode).second++;
+
+        if (key == '1') mode = NONE;
+        if (key == '2') mode = WHITE;
+        if (key == '3') mode = CHESS;
+        if (key == '4') mode = DEPTH;
+        if (key == '5') mode = OBJECTS;
+        if (key == '6') mode = TEMPLATES;
 
         if (key == 'l') load_settings = true;
         if (key == 'r') restart_cam = true;

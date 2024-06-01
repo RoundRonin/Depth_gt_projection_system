@@ -57,7 +57,7 @@ class ImageProcessor {
 
     void write(std::string path);
 
-    void setParameteresFromSettings(Settings settings);
+    void setParametersFromSettings(Config config);
 
     cv::Mat erode(int erosion_dst, int erosion_size);
 

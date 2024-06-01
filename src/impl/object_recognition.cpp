@@ -63,14 +63,14 @@ void ImageProcessor::write(string path) {
     imwrite(path, (*image));
 }
 
-void ImageProcessor::setParameteresFromSettings(Settings settings) {
+void ImageProcessor::setParametersFromSettings(Config config) {
     // TODO cheks?
-    m_parameters.z_limit = settings.config.z_limit;
-    m_parameters.min_distance = settings.config.medium_limit;
-    m_parameters.medium_limit = settings.config.medium_limit;
-    m_parameters.min_area = settings.config.min_area;
-    m_parameters.max_objects = settings.config.max_objects;
-    m_parameters.recurse = settings.config.recurse;
+    m_parameters.z_limit = config.z_limit;
+    m_parameters.min_distance = config.min_distance;
+    m_parameters.medium_limit = config.medium_limit;
+    m_parameters.min_area = config.min_area;
+    m_parameters.max_objects = config.max_objects;
+    m_parameters.recurse = config.recurse;
 }
 
 cv::Mat ImageProcessor::erode(int erosion_dst, int erosion_size) {
@@ -189,6 +189,7 @@ void ImageProcessor::findObjects() {
                 mask_mats.at(i).mat);
     }
 
+    imwrite(m_out_path + "image_to_process.png", *image);
     imwrite(m_out_path + "objects.png", m_objects);
 }
 
