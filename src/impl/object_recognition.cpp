@@ -63,6 +63,16 @@ void ImageProcessor::write(string path) {
     imwrite(path, (*image));
 }
 
+void ImageProcessor::setParameteresFromSettings(Settings settings) {
+    // TODO cheks?
+    m_parameters.z_limit = settings.config.z_limit;
+    m_parameters.min_distance = settings.config.medium_limit;
+    m_parameters.medium_limit = settings.config.medium_limit;
+    m_parameters.min_area = settings.config.min_area;
+    m_parameters.max_objects = settings.config.max_objects;
+    m_parameters.recurse = settings.config.recurse;
+}
+
 cv::Mat ImageProcessor::erode(int erosion_dst, int erosion_size) {
     int erosion_type = MORPH_ELLIPSE;
     cv::Mat element = getStructuringElement(
@@ -89,9 +99,7 @@ cv::Mat ImageProcessor::dilate(int dilation_dst, int dilation_size) {
     return output;
 }
 
-void ImageProcessor::findObjects(uchar zlimit, uchar minDistance,
-                                 uchar medium_limit, int minDots,
-                                 int maxObjects, bool recurse) {
+void ImageProcessor::findObjects() {
     // printFindInfo(zlimit, minDistance, minDots, maxObjects);
     auto i_use = Printer::ERROR::INFO_USING;
     auto i_info = Printer::ERROR::INFO;
@@ -101,15 +109,15 @@ void ImageProcessor::findObjects(uchar zlimit, uchar minDistance,
     auto p = Printer::DEBUG_LVL::PRODUCTION;
     // auto b = Printer::DEBUG_LVL::BRIEF;
 
-    m_printer.log_message({i_use, {(int)zlimit}, "depth difference limit", p});
-    m_printer.log_message({i_use, {(int)minDistance}, "min distance", p});
-    m_printer.log_message({i_use, {(int)medium_limit}, "medium limit", p});
-    m_printer.log_message({i_use, {minDots}, "min area", p});
-    m_printer.log_message({i_use, {maxObjects}, "max number of objects", p});
-
-    m_zlimit = zlimit;
-    m_min_distance = minDistance;
-    m_medium_limit = medium_limit;
+    m_printer.log_message(
+        {i_use, {(int)m_parameters.z_limit}, "depth difference limit", p});
+    m_printer.log_message(
+        {i_use, {(int)m_parameters.min_distance}, "min distance", p});
+    m_printer.log_message(
+        {i_use, {(int)m_parameters.medium_limit}, "medium limit", p});
+    m_printer.log_message({i_use, {m_parameters.min_area}, "min area", p});
+    m_printer.log_message(
+        {i_use, {m_parameters.recurse ? 1 : 0}, "recurse", p});
 
     // ImageProcessor info
     int nRows = (*image).rows;
@@ -139,27 +147,27 @@ void ImageProcessor::findObjects(uchar zlimit, uchar minDistance,
         current = Point(x, y);  //? remove this init?
         val = (*image).at<uchar>(current);
         visited++;
-        if (val <= m_min_distance) continue;
+        if (val <= m_parameters.min_distance) continue;
         if (m_objects.at<uchar>(current) != 0) continue;
 
         m_log.start();
         amount = 0;
         imageLeft = size - y * nCols + x;  // TODO
-        if (recurse)
+        if (m_parameters.recurse)
             paint(current, output, id, stats);
         else
             iterate(current, output, imageLeft, id, stats);
 
-        if (amount < minDots) {
-            m_printer.log_message({w_smol, {amount, minDots}});
+        if (amount < m_parameters.min_area) {
+            m_printer.log_message({w_smol, {amount, m_parameters.min_area}});
             m_log.drop();
             continue;
         }
 
-        if (mask_mats.size() < maxObjects)
+        if (mask_mats.size() < m_parameters.max_objects)
             mask_mats.push_back({output, amount});
         else {
-            m_printer.log_message({w_limit, {maxObjects}});
+            m_printer.log_message({w_limit, {m_parameters.max_objects}});
             m_log.drop();
             continue;
         }
@@ -224,14 +232,16 @@ void ImageProcessor::iterate(Point start, cv::Mat &output, int imageLeft,
                 point_to_check.y < 0)
                 continue;
             if (m_objects.at<uchar>(point_to_check) != 0) continue;
-            if ((*image).at<uchar>(point_to_check) <= m_min_distance) continue;
-            if (abs((*image).at<uchar>(point_to_check) - previous_z) > m_zlimit)
+            if ((*image).at<uchar>(point_to_check) <= m_parameters.min_distance)
+                continue;
+            if (abs((*image).at<uchar>(point_to_check) - previous_z) >
+                m_parameters.z_limit)
                 continue;
 
             // Additional checks
             // medium check
             if (abs((*image).at<uchar>(point_to_check) - mediumVal) >
-                m_medium_limit)
+                m_parameters.medium_limit)
                 continue;
 
             amount++;
@@ -266,12 +276,14 @@ bool ImageProcessor::walk(cv::Mat &output, uchar prev_z, double &mediumVal,
         return false;
     Point current = Point(x, y);
     if (m_objects.at<uchar>(current) != 0) return false;
-    if ((*image).at<uchar>(current) <= m_min_distance) return false;
-    if (abs((*image).at<uchar>(current) - prev_z) > m_zlimit) return false;
+    if ((*image).at<uchar>(current) <= m_parameters.min_distance) return false;
+    if (abs((*image).at<uchar>(current) - prev_z) > m_parameters.z_limit)
+        return false;
 
     // Additional checks
     // medium check
-    if (abs((*image).at<uchar>(current) - mediumVal) > m_medium_limit)
+    if (abs((*image).at<uchar>(current) - mediumVal) >
+        m_parameters.medium_limit)
         return false;
 
     m_objects.at<uchar>(current) = id;  // Painting the pixel

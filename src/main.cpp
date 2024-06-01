@@ -118,7 +118,8 @@ class Loop {
                     cv::warpPerspective(cam_man.image_depth_cv, transformed,
                                         cam_man.homography,
                                         cv::Size(width, height));
-                    imshow(window_name, transformed);
+                    // imshow(window_name, transformed);
+                    void postProcessing(transformed);
                 } catch (const std::exception &e) {
                     std::cerr << "Image processing failed; " << e.what()
                               << '\n';
@@ -127,11 +128,23 @@ class Loop {
 
             m_state.key = cv::waitKey(10);
 
-            // TODO color coding for objects via tamplates
-
             m_state.action();
-            // ! calibration
         }
+    }
+
+    void postProcessing(cv::Mat image) {
+        // TODO color coding for objects via tamplates
+        m_image_processor.getImage(&image);
+
+        for (auto action : m_settings.erodil) {
+            if (action.type == ErosionDilation::Dilation)
+                m_image_processor.dilate(action.distance, action.size);
+            else
+                m_image_processor.erode(action.distance, action.size);
+        }
+
+        m_image_processor.setParameteresFromSettings(m_settings);
+        m_image_processor.findObjects();
     }
 
     void loadSettings(zed::CameraManager &cam_man) {
