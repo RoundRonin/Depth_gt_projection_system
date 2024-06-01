@@ -19,6 +19,8 @@ struct InteractiveState {
     bool keep_running = true;
     bool pause = false;
     bool calibrate = false;
+    bool grab = true;
+    bool process = true;
 
     // one-time check states
     bool next = false;
@@ -30,6 +32,9 @@ struct InteractiveState {
         std::cout << " Press 'q' to exit" << std::endl;
         std::cout << " Press 'p' or ' ' to pasue" << std::endl;
         std::cout << " Press 'c' to switch calibration mode" << std::endl;
+        std::cout << " Press 'g' to switch grabbing" << std::endl;
+        std::cout << " Press 'h' to switch processing" << std::endl;
+        std::cout << " " << std::endl;
         std::cout << " Press 'l' to load settings from config" << std::endl;
         std::cout << " Press 'r' to restart camera" << std::endl;
     }
@@ -39,16 +44,23 @@ struct InteractiveState {
             keep_running = false;
             calibrate = false;
             pause = false;
+            grab = false;
+            process = false;
         }
+
         if (key == 'p' || key == ' ') pause = !pause;
+        if (key == 'c') calibrate = !calibrate;
+        if (key == 'g') grab = !grab;
+        if (key == 'h') process = !process;
+
+        if (key == 'l') load_settings = true;
+        if (key == 'r') restart_cam = true;
+
         while (pause && !next) {
             key = cv::waitKey(0);
             if (key == 'p') pause = !pause;
             if (key == ' ' || key == 'q') next = true;
         }
-        if (key == 'c') calibrate = !calibrate;
-        if (key == 'l') load_settings = true;
-        if (key == 'r') restart_cam = true;
     }
 };
 

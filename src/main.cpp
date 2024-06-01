@@ -108,8 +108,9 @@ class Loop {
                 }
             }
 
+            cv::Mat image;
             auto returned_state = cam_man.grab();
-            if (returned_state == sl::ERROR_CODE::SUCCESS) {
+            if (m_state.grab && returned_state == sl::ERROR_CODE::SUCCESS) {
                 try {
                     cam_man.imageProcessing(false);
                     int height = cam_man.image_depth_cv.rows;
@@ -119,12 +120,15 @@ class Loop {
                                         cam_man.homography,
                                         cv::Size(width, height));
                     // imshow(window_name, transformed);
-                    void postProcessing(transformed);
+                    image = transformed;
+
                 } catch (const std::exception &e) {
                     std::cerr << "Image processing failed; " << e.what()
                               << '\n';
                 }
             }
+
+            if (m_state.process) postProcessing(image);
 
             m_state.key = cv::waitKey(10);
 
@@ -133,18 +137,23 @@ class Loop {
     }
 
     void postProcessing(cv::Mat image) {
-        // TODO color coding for objects via tamplates
-        m_image_processor.getImage(&image);
+        try {
+            // TODO color coding for objects via tamplates
+            m_image_processor.getImage(&image);
 
-        for (auto action : m_settings.erodil) {
-            if (action.type == ErosionDilation::Dilation)
-                m_image_processor.dilate(action.distance, action.size);
-            else
-                m_image_processor.erode(action.distance, action.size);
+            for (auto action : m_settings.erodil) {
+                if (action.type == ErosionDilation::Dilation)
+                    m_image_processor.dilate(action.distance, action.size);
+                else
+                    m_image_processor.erode(action.distance, action.size);
+            }
+
+            m_image_processor.setParameteresFromSettings(m_settings);
+            m_image_processor.findObjects();
+        } catch (const std::exception &e) {
+            std::cerr << e.what() << '\n';
+            m_state.load_settings = false;
         }
-
-        m_image_processor.setParameteresFromSettings(m_settings);
-        m_image_processor.findObjects();
     }
 
     void loadSettings(zed::CameraManager &cam_man) {
