@@ -25,6 +25,8 @@ using namespace std;
 
 // TODO free cam on process kill
 
+// TODO check for cam movement and activate recalibration
+
 void signalHandler(int signalNumber);
 
 class Loop {
@@ -98,10 +100,11 @@ class Loop {
         cam_man.openCam(m_settings.config);
         // camMan.imageProcessing(false);
 
-        auto printer = [this](string mode) {
+        auto printer = [this](string mode, int value = 0,
+                              string value_name = "") {
             m_printer.log_message({Printer::INFO,
-                                   {0},
-                                   "Using " + mode + " mode",
+                                   {value},
+                                   "Using " + mode + " mode; " + value_name,
                                    Printer::DEBUG_LVL::PRODUCTION});
         };
 
@@ -127,11 +130,12 @@ class Loop {
                     break;
                 }
                 case InteractiveState::Mode::WHITE: {
-                    printer("WHITE");
+                    uchar brightness = m_state.scales.at(0).second * 25 + 5;
+                    printer("WHITE", brightness, "Brightness");
                     if (m_state.process) postProcessing(image);
-
-                    image = cv::Mat(image.size(), CV_8UC3,
-                                    cv::Scalar(255, 255, 255));
+                    image =
+                        cv::Mat(image.size(), CV_8UC3,
+                                cv::Scalar(brightness, brightness, brightness));
                     break;
                 }
                 case InteractiveState::Mode::CHESS: {

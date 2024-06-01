@@ -31,20 +31,27 @@ struct InteractiveState {
     bool restart_cam = false;
     int idx = 0;
 
-    // other values
+    // scales [1, 10];
     int scale_mode = 0;
-    vector<pair<string, int>> scales{{"brightness", 10}, {"alpha", 1}};
+    std::vector<std::pair<std::string, int>> scales{{"brightness", 10},
+                                                    {"alpha", 1}};
 
     void printHelp() {
-        std::cout << " Press 'q' to exit" << std::endl;
-        std::cout << " Press 'p' or ' ' to pasue" << std::endl;
-        std::cout << " Press 'c' to switch calibration mode" << std::endl;
-        std::cout << " Press 'g' to switch grabbing" << std::endl;
-        std::cout << " Press 'h' to switch processing" << std::endl;
-        // std::cout << " Press 't' to switch templates" << std::endl;
+        std::cout << "    Press 'q' to exit" << std::endl;
+        std::cout << "    Press 'p' or ' ' to pasue" << std::endl;
+        std::cout << "    Press 'c' to switch calibration mode" << std::endl;
+        std::cout << "    Press 'g' to switch grabbing" << std::endl;
+        std::cout << "    Press 'h' to switch processing" << std::endl;
         std::cout << " " << std::endl;
-        std::cout << " Press 'l' to load settings from config" << std::endl;
-        std::cout << " Press 'r' to restart camera" << std::endl;
+        std::cout << "    Press 'l' to load settings from config" << std::endl;
+        std::cout << "    Press 'r' to restart camera" << std::endl;
+        std::cout << " " << std::endl;
+        std::cout << "    Press 'm' to choose what setting to change (cycle "
+                     "through modes)"
+                  << std::endl;
+        std::cout << "    Press '+' and '-' to increase or decrease value of a "
+                     "setting"
+                  << std::endl;
     }
 
     void action() {
@@ -64,8 +71,29 @@ struct InteractiveState {
 
         if (key == 'm') {
             scale_mode = (scale_mode + 1) % scales.size();
+            std::string mode = scales.at(scale_mode).first;
+            std::cout << "    Now in " << mode << " mode!";
         }
-        if (key == '+') scales.at(scale_mode).second++;
+        if (key == '+') {
+            int value = scales.at(scale_mode).second;
+            std::string mode = scales.at(scale_mode).first;
+
+            if (value >= 10)
+                scales.at(scale_mode).second = 1;
+            else
+                scales.at(scale_mode).second++;
+
+            value = scales.at(scale_mode).second;
+            std::cout << "    " << mode << " value changed to " << value << "!"
+                      << std::endl;
+        }
+        if (key == '-') {
+            int value = scales.at(scale_mode).second;
+            if (value <= 1)
+                scales.at(scale_mode).second = 10;
+            else
+                scales.at(scale_mode).second--;
+        }
 
         if (key == '1') mode = NONE;
         if (key == '2') mode = WHITE;

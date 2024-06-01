@@ -7,7 +7,7 @@
             "output_location": "./Result/",
             "config_location": "./Config/",
             "z_limit": 10,
-            "min_distance": 100,
+            "min_distance": 0,
             "medium_limit": 10,
             "min_area": 10000,
             "max_objects": 10,
