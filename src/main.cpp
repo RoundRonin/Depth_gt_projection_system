@@ -10,6 +10,11 @@
 #include "./impl/templategen.cpp"
 // #include "./impl/utils.cpp"
 
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+
 using namespace cv;
 using namespace std;
 // using namespace dm;
@@ -26,6 +31,8 @@ using namespace std;
 // TODO free cam on process kill
 
 // TODO check for cam movement and activate recalibration
+
+// TODO join threads on kill
 
 void signalHandler(int signalNumber);
 
@@ -53,7 +60,10 @@ class Loop {
           m_printer(print),
           m_logger(log),
           m_image_processor(img_proc),
-          m_templates(templates) {}
+          m_templates(templates) {
+        setResolution(
+            static_cast<sl::RESOLUTION>(m_settings.config.camera_resolution));
+    }
 
     void Process() {
         auto type = m_settings.config.type;
@@ -95,10 +105,73 @@ class Loop {
     }
 
     void doTheLoop() {
+        // camMan.imageProcessing(false);
+
+        m_state.printHelp();
+
+        std::thread readerThread(&Loop::acquireInformation, this);
+        std::thread displayThread(&Loop::showAndControl, this);
+
+        // Wait for the threads to finish
+        readerThread.join();
+        displayThread.join();
+    }
+
+    std::mutex mats_mutex;
+    std::condition_variable mats_condition;
+    std::atomic<bool> mats_available{false};
+
+    std::mutex calibration_mutex;
+    std::condition_variable calibration_condition;
+    std::atomic<bool> imshow_available{true};
+
+    std::mutex settings_mutex;
+    std::condition_variable settings_condition;
+    std::atomic<bool> settings_available{true};
+
+    void acquireInformation() {
         zed::CameraManager cam_man(m_printer);
 
         cam_man.openCam(m_settings.config);
-        // camMan.imageProcessing(false);
+
+        cv::Mat image = cv::Mat(m_resolution, CV_8UC1, double(0));
+
+        while (m_state.keep_running) {
+            // TODO ensure that m_state commands are processed
+            if (m_state.load_settings) {
+                settings_available = false;
+                std::lock_guard<std::mutex> lock(settings_mutex);
+                loadSettings(cam_man);
+                settings_available = true;
+            }
+            settings_available.notify_one();
+            if (m_state.restart_cam) restartCamera(cam_man);
+            if (m_state.calibrate) {
+                imshow_available = false;
+                std::lock_guard<std::mutex> lock(calibration_mutex);
+                calibrate(cam_man);
+                imshow_available = true;
+            }
+            calibration_condition.notify_one();
+
+            auto returned_state = cam_man.grab();
+            if (m_state.grab && returned_state == sl::ERROR_CODE::SUCCESS)
+                grabImage(cam_man, image);
+
+            if (m_state.process) {
+                mats_available = false;
+                std::lock_guard<std::mutex> lock(mats_mutex);
+                postProcessing(image);
+                mats_available = true;
+            }
+            mats_condition.notify_one();
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    }
+
+    void showAndControl() {
+        cv::Mat image = cv::Mat(m_resolution, CV_8UC1, double(0));
 
         auto printer = [this](string mode, int value = 0,
                               string value_name = "") {
@@ -108,31 +181,26 @@ class Loop {
                                    Printer::DEBUG_LVL::PRODUCTION});
         };
 
-        m_state.printHelp();
         while (m_state.keep_running) {
             m_state.next = false;
             m_state.idx = 0;
 
-            if (m_state.load_settings) loadSettings(cam_man);
-            if (m_state.restart_cam) restartCamera(cam_man);
-            if (m_state.calibrate) calibrate(cam_man);
-
-            cv::Mat image = cv::Mat(m_resolution, CV_8UC1, double(0));
-            auto returned_state = cam_man.grab();
-            if (m_state.grab && returned_state == sl::ERROR_CODE::SUCCESS)
-                grabImage(cam_man, image);
+            std::unique_lock<std::mutex> lock_settings(settings_mutex);
+            settings_condition.wait(
+                lock_settings, [this] { return settings_available.load(); });
+            std::unique_lock<std::mutex> lock_imshow(calibration_mutex);
+            mats_condition.wait(lock_imshow,
+                                [this] { return imshow_available.load(); });
 
             switch (m_state.mode) {
                 case InteractiveState::Mode::NONE: {
                     printer("NONE");
-                    if (m_state.process) postProcessing(image);
                     image = cv::Mat::zeros(image.size(), CV_8UC4);
                     break;
                 }
                 case InteractiveState::Mode::WHITE: {
                     uchar brightness = m_state.scales.at(0).second * 25 + 5;
                     printer("WHITE", brightness, "Brightness");
-                    if (m_state.process) postProcessing(image);
                     image =
                         cv::Mat(image.size(), CV_8UC3,
                                 cv::Scalar(brightness, brightness, brightness));
@@ -140,7 +208,6 @@ class Loop {
                 }
                 case InteractiveState::Mode::CHESS: {
                     printer("CHESS");
-                    if (m_state.process) postProcessing(image);
                     cv::Mat white(image.size(), CV_8UC1,
                                   cv::Scalar(255, 255, 255));
                     image = m_templates.chessBoard(0, white);
@@ -152,19 +219,34 @@ class Loop {
                 }
                 case InteractiveState::Mode::OBJECTS: {
                     printer("OBJECTS");
-                    if (m_state.process) postProcessing(image);
+
+                    // TODO write a message about lock
+                    // TODO create a separate mats for the case of a lock
+                    if (!mats_available.load()) break;
+                    std::unique_lock<std::mutex> lock_mats(mats_mutex);
+                    mats_condition.wait(
+                        lock_mats, [this] { return mats_available.load(); });
+                    // ! has problems, arrays are off??
                     maskAgregator(image);
                     break;
                 }
                 case InteractiveState::Mode::TEMPLATES: {
                     printer("TEMPLATES");
-                    if (m_state.process) postProcessing(image);
+
+                    // TODO write a message about lock
+                    // TODO create a separate mats for the case of a lock
+                    if (!mats_available.load()) break;
+                    std::unique_lock<std::mutex> lock_mats(mats_mutex);
+                    mats_condition.wait(
+                        lock_mats, [this] { return mats_available.load(); });
+                    // ! has problems, arrays are off??
                     applyTemplates(image);
                     break;
                 }
                 default:
                     break;
             }
+
             imshow(window_name, image);
             m_state.key = cv::waitKey(10);
             m_state.action();
@@ -349,6 +431,7 @@ int main(int argc, char **argv) {
     return EXIT_SUCCESS;
 }
 
+// TODO graceful stop: destroy the class, join its threads
 void signalHandler(int signalNumber) {
     if (signalNumber == SIGTERM || signalNumber == SIGHUP) {
         std::cout << "Recieved interupt signal: " << signalNumber

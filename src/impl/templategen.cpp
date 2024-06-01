@@ -35,7 +35,8 @@ cv::Mat Templates::gradient(int iter, cv::Mat mask, int a) {
 }
 
 cv::Mat Templates::chessBoard(int iter, cv::Mat mask, int speedX, int speedY) {
-    cv::Mat frame = cv::Mat::zeros(height, width, CV_8UC3);
+    // TODO FIX IT
+    cv::Mat frame = cv::Mat::zeros(mask.size(), CV_8UC3);
 
     int offsetX = -(filler) + iter * speedX % (filler);
 
@@ -64,7 +65,7 @@ cv::Mat Templates::chessBoard(int iter, cv::Mat mask, int speedX, int speedY) {
 }
 
 cv::Mat Templates::solidColor(cv::Mat mask, cv::Scalar color) {
-    cv::Mat frame = cv::Mat::zeros(height, width, CV_8UC3);
+    cv::Mat frame = cv::Mat::zeros(mask.size(), CV_8UC3);
 
     rectangle(frame, cv::Point(0, 0), cv::Point(width, height), color, -1);
 

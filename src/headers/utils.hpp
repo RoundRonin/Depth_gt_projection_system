@@ -66,7 +66,7 @@ struct InteractiveState {
         if (key == 'p' || key == ' ') pause = !pause;
         if (key == 'c') calibrate = !calibrate;
         if (key == 'g') grab = !grab;
-        // if (key == 'h') process = !process;
+        if (key == 'h') process = !process;
         // if (key == 't') apply_templates = !apply_templates;
 
         if (key == 'm') {
@@ -84,8 +84,8 @@ struct InteractiveState {
                 scales.at(scale_mode).second++;
 
             value = scales.at(scale_mode).second;
-            std::cout << "    " << mode << " value changed to " << value << "!"
-                      << std::endl;
+            std::cout << "\n    " << mode << " value changed to " << value
+                      << "!" << std::endl;
         }
         if (key == '-') {
             int value = scales.at(scale_mode).second;
@@ -93,6 +93,10 @@ struct InteractiveState {
                 scales.at(scale_mode).second = 10;
             else
                 scales.at(scale_mode).second--;
+
+            value = scales.at(scale_mode).second;
+            std::cout << "\n    " << mode << " value changed to " << value
+                      << "!" << std::endl;
         }
 
         if (key == '1') mode = NONE;
