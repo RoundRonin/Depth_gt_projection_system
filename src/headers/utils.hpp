@@ -21,6 +21,7 @@ struct InteractiveState {
     bool calibrate = false;
     bool grab = true;
     bool process = true;
+    bool apply_templates = true;
 
     // one-time check states
     bool next = false;
@@ -34,6 +35,7 @@ struct InteractiveState {
         std::cout << " Press 'c' to switch calibration mode" << std::endl;
         std::cout << " Press 'g' to switch grabbing" << std::endl;
         std::cout << " Press 'h' to switch processing" << std::endl;
+        std::cout << " Press 't' to switch templates" << std::endl;
         std::cout << " " << std::endl;
         std::cout << " Press 'l' to load settings from config" << std::endl;
         std::cout << " Press 'r' to restart camera" << std::endl;
@@ -52,6 +54,7 @@ struct InteractiveState {
         if (key == 'c') calibrate = !calibrate;
         if (key == 'g') grab = !grab;
         if (key == 'h') process = !process;
+        if (key == 't') apply_templates = !apply_templates;
 
         if (key == 'l') load_settings = true;
         if (key == 'r') restart_cam = true;

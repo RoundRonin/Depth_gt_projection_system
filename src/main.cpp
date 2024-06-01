@@ -35,6 +35,9 @@ class Loop {
 
     InteractiveState m_state;
 
+    vector<ImageProcessor::MatWithInfo> m_mask_mats;
+    cv::Size m_defualt_resolution = {1280, 720};
+
    public:
     string window_name;
 
@@ -97,62 +100,18 @@ class Loop {
 
             if (m_state.load_settings) loadSettings(cam_man);
             if (m_state.restart_cam) restartCamera(cam_man);
-            if (m_state.calibrate) {
-                try {
-                    cam_man.calibrate(window_name, m_state,
-                                      m_settings.config.output_location, 15000);
-                    m_state.calibrate = false;
-                } catch (const std::exception &e) {
-                    std::cerr << "Calibration failed; " << e.what() << '\n';
-                    m_state.calibrate = false;
-                }
-            }
+            if (m_state.calibrate) calibrate(cam_man);
 
-            cv::Mat image;
+            cv::Mat image = cv::Mat(m_defualt_resolution, CV_8U, double(0));
             auto returned_state = cam_man.grab();
-            if (m_state.grab && returned_state == sl::ERROR_CODE::SUCCESS) {
-                try {
-                    cam_man.imageProcessing(false);
-                    int height = cam_man.image_depth_cv.rows;
-                    int width = cam_man.image_depth_cv.cols;
-                    cv::Mat transformed(height, width, CV_8UC1);
-                    cv::warpPerspective(cam_man.image_depth_cv, transformed,
-                                        cam_man.homography,
-                                        cv::Size(width, height));
-                    // imshow(window_name, transformed);
-                    image = transformed;
-
-                } catch (const std::exception &e) {
-                    std::cerr << "Image processing failed; " << e.what()
-                              << '\n';
-                }
-            }
-
+            if (m_state.grab && returned_state == sl::ERROR_CODE::SUCCESS)
+                grabImage(cam_man, image);
             if (m_state.process) postProcessing(image);
+            if (m_state.apply_templates) applyTemplates();
 
+            imshow(window_name, image);
             m_state.key = cv::waitKey(10);
-
             m_state.action();
-        }
-    }
-
-    void postProcessing(cv::Mat image) {
-        try {
-            // TODO color coding for objects via tamplates
-            m_image_processor.getImage(&image);
-
-            for (auto action : m_settings.erodil) {
-                if (action.type == ErosionDilation::Dilation)
-                    m_image_processor.dilate(action.distance, action.size);
-                else
-                    m_image_processor.erode(action.distance, action.size);
-            }
-
-            m_image_processor.setParameteresFromSettings(m_settings);
-            m_image_processor.findObjects();
-        } catch (const std::exception &e) {
-            std::cerr << e.what() << '\n';
-            m_state.load_settings = false;
         }
     }
 
@@ -190,6 +149,59 @@ class Loop {
             std::cerr << e.what() << '\n';
             m_state.restart_cam = false;
         }
+    }
+
+    void calibrate(zed::CameraManager &cam_man) {
+        try {
+            cam_man.calibrate(window_name, m_state,
+                              m_settings.config.output_location, 15000);
+            m_state.calibrate = false;
+        } catch (const std::exception &e) {
+            std::cerr << "Calibration failed; " << e.what() << '\n';
+            m_state.calibrate = false;
+        }
+    }
+
+    void grabImage(zed::CameraManager &cam_man, cv::Mat &image) {
+        try {
+            cam_man.imageProcessing(false);
+            int height = cam_man.image_depth_cv.rows;
+            int width = cam_man.image_depth_cv.cols;
+            cv::Mat transformed(height, width, CV_8UC1);
+            cv::warpPerspective(cam_man.image_depth_cv, transformed,
+                                cam_man.homography, cv::Size(width, height));
+            // imshow(window_name, transformed);
+            image = transformed;
+
+        } catch (const std::exception &e) {
+            std::cerr << "Image processing failed; " << e.what() << '\n';
+        }
+    }
+
+    void postProcessing(cv::Mat &image) {
+        try {
+            m_image_processor.getImage(&image);
+
+            for (auto action : m_settings.erodil) {
+                if (action.type == ErosionDilation::Dilation)
+                    m_image_processor.dilate(action.distance, action.size);
+                else
+                    m_image_processor.erode(action.distance, action.size);
+            }
+
+            m_image_processor.setParameteresFromSettings(m_settings);
+            m_image_processor.findObjects();
+
+            m_mask_mats = m_image_processor.mask_mats;
+        } catch (const std::exception &e) {
+            std::cerr << e.what() << '\n';
+            m_state.load_settings = false;
+        }
+    }
+
+    void applyTemplates() {
+        // TODO color coding for objects via tamplates
+        // use settings to define template characteristics
     }
 };
 
