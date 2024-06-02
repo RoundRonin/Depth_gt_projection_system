@@ -379,13 +379,15 @@ class Loop {
             // TODO color coding for objects via tamplates
             // use settings to define template characteristics
             // cleanup; 1 channels
+            image = cv::Mat::zeros(image.size(), CV_8UC3);
             vector<cv::Mat> mats;
-            int idx = 0;
-            for (auto mask : mask_mats) {
-                if (idx == 0) continue;
+            for (int i = 0; i < mask_mats.size(); i++) {
+                if (i == 0) continue;
+                auto mask = mask_mats.at(i);
                 mats.push_back(mask.mat);
-                idx++;
             }
+
+            m_templates.applyTemplates(m_settings.templates, mats, image);
 
             imwrite(m_settings.config.output_location + "templated_image.png",
                     image);

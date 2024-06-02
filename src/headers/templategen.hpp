@@ -21,9 +21,23 @@ class Templates {
         for (auto temp : template_list) {
             for (auto object_number : temp.objects) {
                 try {
+                    if (object_number >= mask_mats.size()) continue;
                     cv::Mat result(image.size(), image.type());
                     auto mask = mask_mats.at(object_number);
                     useTemplate(temp, mask, result);
+
+                    // std::cout << "IMAGE size, type, channels: " <<
+                    // image.size()
+                    //           << " " << image.type() << " " <<
+                    //           image.channels()
+                    //           << '\n';
+                    // std::cout
+                    //     << "RESULT size, type, channels: " << result.size()
+                    //     << " " << result.type() << " " << result.channels()
+                    //     << '\n';
+                    CV_Assert(image.size() == result.size());
+                    CV_Assert(image.type() == result.type());
+                    CV_Assert(image.channels() == result.channels());
                     cv::add(image, result, image);
                 } catch (const std::exception &e) {
                     std::cerr << e.what() << '\n';

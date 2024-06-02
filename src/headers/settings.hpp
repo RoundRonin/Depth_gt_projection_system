@@ -320,8 +320,25 @@ class Settings {
    public:
     Config config;
     vector<ErosionDilation> erodil;
-    vector<Template> templates;
     HoughLinesPsets hough_params;
+    vector<Template> templates{{.name = Template::CHESS,
+                                .scale = 1,
+                                .speed_x = 1,
+                                .speed_y = 1,
+                                .speed_multiplier = 1,
+                                .param_a = 1,
+                                .param_b = 1,
+                                .param_c = 1,
+                                .objects = {0, 3, 5, 7}},
+                               {.name = Template::GRAD,
+                                .scale = 1,
+                                .speed_x = 1,
+                                .speed_y = 1,
+                                .speed_multiplier = 1,
+                                .param_a = 1,
+                                .param_b = 1,
+                                .param_c = 1,
+                                .objects = {1, 2, 4, 6}}};
 
     Settings() {
         erodil.push_back({ErosionDilation::Type::Erosion, 3, 3});
