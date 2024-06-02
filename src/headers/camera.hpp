@@ -2,6 +2,7 @@
 #define CAMERA_HPP
 
 #include <array>
+#include <deque>
 #include <optional>
 #include <sl/Camera.hpp>
 #include <string>
@@ -18,6 +19,7 @@ class CameraManager {
     Printer::DEBUG_LVL m_prod = Printer::DEBUG_LVL::PRODUCTION;
     Printer::ERROR m_info = Printer::ERROR::INFO;
     Printer::ERROR m_succ = Printer::ERROR::SUCCESS;
+    Printer::ERROR m_fail = Printer::ERROR::FAILURE;
 
     sl::Camera m_zed;
     sl::InitParameters m_initParams;
@@ -27,6 +29,9 @@ class CameraManager {
     HoughLinesPsets m_hough_params;
 
     bool m_isGrabbed;
+    int m_repeat_times;
+
+    std::deque<cv::Mat> m_image_que;
 
    public:
     sl::Mat *image_color;
@@ -45,6 +50,7 @@ class CameraManager {
 
     // TODO sl::ERROR?
     void openCam(Config config) {
+        m_repeat_times = config.repeat_times;
         setInitParams(config);
         auto returned_state = m_zed.open(m_initParams);
         if (returned_state != sl::ERROR_CODE::SUCCESS) {
@@ -62,9 +68,7 @@ class CameraManager {
         image_depth =
             new sl::Mat(m_resolution, sl::MAT_TYPE::U8_C4, sl::MEM::CPU);
         image_depth_cv = slMat2cvMat(*image_depth);
-        // image_mask =
-        //     new sl::Mat(m_resolution, sl::MAT_TYPE::U8_C1, sl::MEM::CPU);
-        // image_mask_cv = slMat2cvMat(*image_mask);
+
         image_mask_cv =
             cv::Mat::ones(m_resolution.height, m_resolution.height, CV_8U);
     }
@@ -99,20 +103,51 @@ class CameraManager {
                             m_resolution);
         m_zed.retrieveImage(*image_gray, sl::VIEW::LEFT_GRAY, sl::MEM::CPU,
                             m_resolution);
-        m_zed.retrieveImage(*image_depth, sl::VIEW::DEPTH);
+        m_zed.retrieveImage(*image_depth, sl::VIEW::DEPTH, sl::MEM::CPU,
+                            m_resolution);
+
+        m_image_que.push_back(image_depth_cv);
+        if (m_image_que.size() > m_repeat_times) {
+            m_image_que.pop_front();
+        }
+        if (m_image_que.size() == m_repeat_times) {
+            auto agregator = m_image_que.front();
+
+            for (int i = 1; i < m_image_que.size(); i++) {
+                auto image = m_image_que.at(i);
+                cv::bitwise_and(image, agregator, agregator);
+            }
+
+            image_depth_cv = agregator;
+        }
+
+        // sl::Mat measure_depth;
+        // auto returned_state = m_zed.retrieveMeasure(
+        //     measure_depth, sl::MEASURE::DEPTH, sl::MEM::CPU,
+        //     m_resolution);
+
+        // if (returned_state == sl::ERROR_CODE::SUCCESS) {
+        //     measure_depth.write("./Result/DEPTH_MEASURE.png",
+        //     sl::MEM::CPU);
+        // }
 
         if (write) {
             if ((*image_color)
-                    .write(("capture_" + std::to_string(m_svo_pos) + ".png")
-                               .c_str()) == sl::ERROR_CODE::SUCCESS)
+                    .write("./Result/Color_image.png", sl::MEM::CPU) ==
+                sl::ERROR_CODE::SUCCESS)
                 m_printer.log_message(
-                    {m_succ, {}, "color image saving", m_prod});
+                    {m_succ, {0}, "Color image save", m_prod});
+            else
+                m_printer.log_message(
+                    {m_fail, {0}, "Color image save", m_prod});
             if ((*image_depth)
-                    .write(
-                        ("capture_depth_" + std::to_string(m_svo_pos) + ".png")
-                            .c_str()) == sl::ERROR_CODE::SUCCESS)
+                    .write("./Result/Depth_image.png", sl::MEM::CPU) ==
+                sl::ERROR_CODE::SUCCESS)
                 m_printer.log_message(
-                    {m_succ, {}, "depth image saving", m_prod});
+                    {m_succ, {0}, "Depth image save", m_prod});
+            else
+                m_printer.log_message(
+                    {m_fail, {0}, "Depth image save", m_prod});
         }
     }
 
@@ -148,23 +183,6 @@ class CameraManager {
 
             cv::Mat normalized_image =
                 cv::Mat::zeros(image_gray_cv.size(), image_gray_cv.type());
-            // for (int y = 0; y < image_gray_cv.rows; y++) {
-            //     for (int x = 0; x < image_gray_cv.cols; x++) {
-            //         if (image_gray_cv.at<uchar>(y, x) > 255 - beta) {
-            //             normalized_image.at<uchar>(y, x) = 255;
-            //         } else {
-            //             normalized_image.at<uchar>(y, x) =
-            //                 cv::saturate_cast<uchar>(
-            //                     alpha * image_gray_cv.at<uchar>(y, x) +
-            //                     beta);
-            //         }
-            //     }
-            // }
-            // cv::adaptiveThreshold(image_gray_cv, normalized_image, 255,
-            //                       ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 7,
-            //                       0);
-            // cv::Scalar scr(1, 1, 1, 1);
-            // scr.col(0)
 
             auto mean = cv::mean(image_gray_cv)[0];
             std::cout << mean << std::endl;
@@ -230,7 +248,9 @@ class CameraManager {
             imageProcessor.pruneMasks();
             (*image_mask) = cvMat2slMat(image_mask_cv);
             (*image_mask).write((save_location + "ROI_mask.png").c_str());
-            m_zed.setRegionOfInterest(*image_mask);
+            m_zed.setRegionOfInterest(
+                *image_mask,
+                {sl::MODULE::POSITIONAL_TRACKING, sl::MODULE::SPATIAL_MAPPING});
         }
     }
 
@@ -254,6 +274,11 @@ class CameraManager {
         // TODO check for files existance
         if (config.type == Config::SOURCE_TYPE::SVO)
             m_initParams.input.setFromSVOFile((config.file_path).c_str());
+
+        // Should reduce computation
+        sl::PositionalTrackingParameters PosParams;
+        PosParams.set_as_static = true;
+        m_zed.enablePositionalTracking(PosParams);
     }
 
     void initSVO() {

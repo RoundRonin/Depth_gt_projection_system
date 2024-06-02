@@ -52,6 +52,7 @@ struct Config {
     int depth_mode = 3;
     int camera_diatance = 20;
     int camera_resolution = 2;  // HD1080
+    int repeat_times = 5;
 
     struct Description {
         option opt;
@@ -109,6 +110,9 @@ struct Config {
          TYPE::INT},
         {{"camera_resolution", required_argument, 0, 'R'},
          "define camera resolution [0 8]",
+         TYPE::INT},
+        {{"repeat_times", required_argument, 0, 'P'},
+         "define how many times a pixel should appear in a map to be included",
          TYPE::INT},
     };
 
@@ -191,6 +195,9 @@ struct Config {
                         "Camera resolution parameter is out of bounds");
             }
             return to_string(camera_resolution);
+        } else if (check(17)) {
+            if (set) repeat_times = atoi(value);
+            return to_string(repeat_times);
         } else
             throw runtime_error("Wrong parameter");
     }

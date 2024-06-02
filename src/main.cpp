@@ -135,7 +135,7 @@ class Loop {
 
         cam_man.openCam(m_settings.config);
 
-        cv::Mat image = cv::Mat(m_resolution, CV_8UC1, double(0));
+        cv::Mat image(m_resolution, CV_8UC1, double(0));
 
         while (m_state.keep_running) {
             // TODO ensure that m_state commands are processed
@@ -145,7 +145,7 @@ class Loop {
                 loadSettings(cam_man);
                 settings_available = true;
             }
-            settings_available.notify_one();
+            settings_condition.notify_one();
             if (m_state.restart_cam) restartCamera(cam_man);
             if (m_state.calibrate) {
                 imshow_available = false;
@@ -173,7 +173,7 @@ class Loop {
     }
 
     void showAndControl() {
-        cv::Mat image = cv::Mat(m_resolution, CV_8UC3, double(0));
+        cv::Mat image(m_resolution, CV_8UC3, double(0));
 
         auto print_mode = [this](string mode, int value = 0,
                                  string value_name = "") {
@@ -309,15 +309,21 @@ class Loop {
 
     void grabImage(zed::CameraManager &cam_man, cv::Mat &image) {
         try {
+            m_logger.start();
+            m_logger.start();
             cam_man.imageProcessing(false);
-            int height = cam_man.image_depth_cv.rows;
-            int width = cam_man.image_depth_cv.cols;
-            cv::Mat transformed(height, width, CV_8UC1);
+            m_logger.stop("imageProcessing");
+            cv::Mat transformed(cam_man.image_depth_cv.size(), CV_8UC1);
             cv::warpPerspective(cam_man.image_depth_cv, transformed,
-                                cam_man.homography, cv::Size(width, height));
+                                cam_man.homography, transformed.size());
             image = transformed;
+            m_logger.stop("whole grabImage");
+            m_logger.print();
+            m_logger.flush();
 
         } catch (const std::exception &e) {
+            m_logger.print();
+            m_logger.flush();
             std::cerr << "Image processing failed; " << e.what()
                       << 'in method \'grabImage\'\n';
         }
