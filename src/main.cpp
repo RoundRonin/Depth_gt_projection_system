@@ -120,6 +120,7 @@ class Loop {
     std::mutex mats_mutex;
     std::condition_variable mats_condition;
     std::atomic<bool> mats_available{false};
+    std::atomic<bool> mats_changed{false};
 
     std::mutex calibration_mutex;
     std::condition_variable calibration_condition;
@@ -163,6 +164,7 @@ class Loop {
                 std::lock_guard<std::mutex> lock(mats_mutex);
                 postProcessing(image);
                 mats_available = true;
+                mats_changed = true;
             }
             mats_condition.notify_one();
 
@@ -171,19 +173,30 @@ class Loop {
     }
 
     void showAndControl() {
-        cv::Mat image = cv::Mat(m_resolution, CV_8UC1, double(0));
+        cv::Mat image = cv::Mat(m_resolution, CV_8UC3, double(0));
 
-        auto printer = [this](string mode, int value = 0,
-                              string value_name = "") {
+        auto print_mode = [this](string mode, int value = 0,
+                                 string value_name = "") {
             m_printer.log_message({Printer::INFO,
                                    {value},
                                    "Using " + mode + " mode; " + value_name,
                                    Printer::DEBUG_LVL::PRODUCTION});
         };
 
+        vector<ImageProcessor::MatWithInfo> mask_mats = m_mask_mats;
+
         while (m_state.keep_running) {
             m_state.next = false;
             m_state.idx = 0;
+
+            if (mats_changed && mats_available) {
+                mask_mats = m_mask_mats;
+                m_printer.log_message({Printer::INFO,
+                                       {(int)mask_mats.size()},
+                                       "Changed masks, size",
+                                       Printer::DEBUG_LVL::PRODUCTION});
+                mats_changed = false;
+            }
 
             std::unique_lock<std::mutex> lock_settings(settings_mutex);
             settings_condition.wait(
@@ -194,53 +207,44 @@ class Loop {
 
             switch (m_state.mode) {
                 case InteractiveState::Mode::NONE: {
-                    printer("NONE");
+                    print_mode("NONE");
                     image = cv::Mat::zeros(image.size(), CV_8UC4);
                     break;
                 }
                 case InteractiveState::Mode::WHITE: {
                     uchar brightness = m_state.scales.at(0).second * 25 + 5;
-                    printer("WHITE", brightness, "Brightness");
+                    print_mode("WHITE", brightness, "Brightness");
                     image =
                         cv::Mat(image.size(), CV_8UC3,
                                 cv::Scalar(brightness, brightness, brightness));
                     break;
                 }
                 case InteractiveState::Mode::CHESS: {
-                    printer("CHESS");
+                    print_mode("CHESS");
                     cv::Mat white(image.size(), CV_8UC1,
                                   cv::Scalar(255, 255, 255));
                     image = m_templates.chessBoard(0, white);
                     break;
                 }
                 case InteractiveState::Mode::DEPTH: {
-                    printer("DEPTH");
+                    print_mode("DEPTH");
                     break;
                 }
                 case InteractiveState::Mode::OBJECTS: {
-                    printer("OBJECTS");
+                    print_mode("OBJECTS");
 
-                    // TODO write a message about lock
-                    // TODO create a separate mats for the case of a lock
                     if (!mats_available.load()) break;
-                    std::unique_lock<std::mutex> lock_mats(mats_mutex);
-                    mats_condition.wait(
-                        lock_mats, [this] { return mats_available.load(); });
+                    // std::unique_lock<std::mutex> lock_mats(mats_mutex);
+                    // mats_condition.wait(
+                    // lock_mats, [this] { return mats_available.load(); });
                     // ! has problems, arrays are off??
-                    maskAgregator(image);
+                    maskAgregator(image, mask_mats);
                     break;
                 }
                 case InteractiveState::Mode::TEMPLATES: {
-                    printer("TEMPLATES");
+                    print_mode("TEMPLATES");
 
-                    // TODO write a message about lock
-                    // TODO create a separate mats for the case of a lock
-                    if (!mats_available.load()) break;
-                    std::unique_lock<std::mutex> lock_mats(mats_mutex);
-                    mats_condition.wait(
-                        lock_mats, [this] { return mats_available.load(); });
-                    // ! has problems, arrays are off??
-                    applyTemplates(image);
+                    applyTemplates(image, mask_mats);
                     break;
                 }
                 default:
@@ -345,9 +349,15 @@ class Loop {
         }
     }
 
-    void maskAgregator(cv::Mat &image) {
+    void maskAgregator(cv::Mat &image,
+                       vector<ImageProcessor::MatWithInfo> &mask_mats) {
         try {
-            for (auto mask : m_mask_mats) {
+            for (auto mask : mask_mats) {
+                image = cv::Mat::zeros(image.size(), CV_8UC3);
+                // std::cout << "mat1 size: " << image.size()
+                //           << ", channels: " << image.channels() << std::endl;
+                // std::cout << "mat2 size: " << mat2.size()
+                //           << ", channels: " << mat2.channels() << std::endl;
                 cv::add(image, mask.mat, image);
             }
         } catch (const std::exception &e) {
@@ -355,7 +365,8 @@ class Loop {
         }
     }
 
-    void applyTemplates(cv::Mat &image) {
+    void applyTemplates(cv::Mat &image,
+                        vector<ImageProcessor::MatWithInfo> &mask_mats) {
         try {
             // TODO color coding for objects via tamplates
             // use settings to define template characteristics
@@ -365,7 +376,7 @@ class Loop {
             image = cv::Mat::zeros(image.size(), CV_8UC3);
 
             cv::Mat result(image.size(), image.type());
-            for (auto mask : m_mask_mats) {
+            for (auto mask : mask_mats) {
                 result = m_templates.gradient(moment_in_time, mask.mat, 5);
                 cv::add(image, result, image);
             }

@@ -55,6 +55,11 @@ struct InteractiveState {
     }
 
     void action() {
+        auto print_switch = [](bool switcher, std::string name) {
+            std::cout << "    Switched " + name + ": "
+                      << (switcher ? "ON" : "OFF") << "!" << std::endl;
+        };
+
         if (key == 'q') {
             keep_running = false;
             calibrate = false;
@@ -63,16 +68,27 @@ struct InteractiveState {
             process = false;
         }
 
-        if (key == 'p' || key == ' ') pause = !pause;
-        if (key == 'c') calibrate = !calibrate;
-        if (key == 'g') grab = !grab;
-        if (key == 'h') process = !process;
-        // if (key == 't') apply_templates = !apply_templates;
+        if (key == 'p' || key == ' ') {
+            pause = !pause;
+            print_switch(pause, "pause");
+        }
+        if (key == 'c') {
+            calibrate = !calibrate;
+            print_switch(calibrate, "calibration");
+        }
+        if (key == 'g') {
+            grab = !grab;
+            print_switch(grab, "grabbing");
+        }
+        if (key == 'h') {
+            process = !process;
+            print_switch(process, "processing");
+        }
 
         if (key == 'm') {
             scale_mode = (scale_mode + 1) % scales.size();
             std::string mode = scales.at(scale_mode).first;
-            std::cout << "    Now in " << mode << " mode!";
+            std::cout << "    Now in " << mode << " mode!" << std::endl;
         }
         if (key == '+') {
             int value = scales.at(scale_mode).second;
