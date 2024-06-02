@@ -3,48 +3,62 @@
 
 #include <vector>
 
-#include "opencv2/highgui.hpp"
-#include "opencv2/imgcodecs.hpp"
 #include "opencv2/opencv.hpp"
+#include "settings.hpp"
 
 class Templates {
     int chessboard_size = 20;  // Size of each square in the chessboard
     int filler = 2 * chessboard_size;
-    // int speedX = 1;
-    // int speedY = 1;
 
-    // int width = 1280;
-    // int height = 720;
-    std::vector<std::string> m_template_name_strings{"GRAD", "CHESS", "SOLID"};
+    int m_iteration;
 
    public:
-    enum TemplateNames { GRAD, CHESS, SOLID };
-
    public:
     Templates();
 
-    void applyTemplates(vector <) {}
-
-    TemplateNames getTemplate(std::string name) {
-        for (int i = 0; i < m_template_name_strings.size(); i++) {
-            if (m_template_name_strings.at(i) == name)
-                return static_cast<TemplateNames>(i);
+    void applyTemplates(std::vector<Template> template_list,
+                        std::vector<cv::Mat> mask_mats, cv::Mat &image) {
+        for (auto temp : template_list) {
+            for (auto object_number : temp.objects) {
+                try {
+                    cv::Mat result(image.size(), image.type());
+                    auto mask = mask_mats.at(object_number);
+                    useTemplate(temp, mask, result);
+                    cv::add(image, result, image);
+                } catch (const std::exception &e) {
+                    std::cerr << e.what() << '\n';
+                }
+            }
         }
 
-        throw std::runtime_error("No template with such name");
+        m_iteration++;
     }
-
-    std::string to_string(TemplateNames temp) {
-        return m_template_name_strings.at(static_cast<int>(temp));
-    }
-
-    void setResolution(cv::Size resolution);
-
-    cv::Mat gradient(int iter, cv::Mat mask, int a);
 
     cv::Mat chessBoard(int iter, cv::Mat mask, int speedX = 1, int speedY = 1);
 
+   private:
+    cv::Mat gradient(int iter, cv::Mat mask, int a);
+
     cv::Mat solidColor(cv::Mat mask, cv::Scalar color);
+
+    void useTemplate(Template temp, cv::Mat &mask, cv::Mat &out) {
+        switch (temp.name) {
+            case Template::GRAD:
+                out = gradient(m_iteration, mask, temp.param_a);
+                break;
+            case Template::CHESS:
+                out = chessBoard(m_iteration, mask, temp.speed_x, temp.speed_y);
+                break;
+            case Template::SOLID:
+                out = solidColor(mask,
+                                 {(double)temp.param_a, (double)temp.param_b,
+                                  (double)temp.param_c});
+                break;
+
+            default:
+                break;
+        }
+    }
 };
 
 #endif

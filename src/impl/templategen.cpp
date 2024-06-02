@@ -1,14 +1,6 @@
 #include "../headers/templategen.hpp"
 
-Templates::Templates(cv::Size resolution) {
-    width = resolution.width;
-    height = resolution.height;
-}
-
-void Templates::setResolution(cv::Size resolution) {
-    width = resolution.width;
-    height = resolution.height;
-}
+Templates::Templates() {}
 
 cv::Mat Templates::gradient(int iter, cv::Mat mask, int a) {
     CV_Assert(mask.type() == CV_8UC1);
@@ -22,7 +14,7 @@ cv::Mat Templates::gradient(int iter, cv::Mat mask, int a) {
         b = 255 * (iter * a - 5 * 60) / (5 * 60);
     }
 
-    rectangle(frame, cv::Point(0, 0), cv::Point(width, height),
+    rectangle(frame, cv::Point(0, 0), cv::Point(mask.size()),
               cv::Scalar(b, g, r), -1);
 
     cv::Mat masked;
@@ -42,8 +34,8 @@ cv::Mat Templates::chessBoard(int iter, cv::Mat mask, int speedX, int speedY) {
 
     int offsetY = -(filler) + iter * speedY % (filler);
 
-    for (int y = 0; y < height + filler; y += chessboard_size) {
-        for (int x = 0; x < width + filler; x += chessboard_size) {
+    for (int y = 0; y < mask.size().height + filler; y += chessboard_size) {
+        for (int x = 0; x < mask.size().width + filler; x += chessboard_size) {
             if (x / chessboard_size % 2 == (y / chessboard_size) % 2) {
                 rectangle(frame, cv::Point(x + offsetX, y + offsetY),
                           cv::Point(x + chessboard_size + offsetX,
@@ -67,7 +59,7 @@ cv::Mat Templates::chessBoard(int iter, cv::Mat mask, int speedX, int speedY) {
 cv::Mat Templates::solidColor(cv::Mat mask, cv::Scalar color) {
     cv::Mat frame = cv::Mat::zeros(mask.size(), CV_8UC3);
 
-    rectangle(frame, cv::Point(0, 0), cv::Point(width, height), color, -1);
+    rectangle(frame, cv::Point(0, 0), cv::Point(mask.size()), color, -1);
 
     cv::Mat masked;
     cv::bitwise_and(frame, frame, masked, mask);

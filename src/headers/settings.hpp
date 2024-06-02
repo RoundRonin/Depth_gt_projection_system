@@ -273,7 +273,7 @@ struct Template {
     int param_c = 1;
     vector<int> objects{1};
 
-    void setName(std::string name) { name = processStringName(name); }
+    void setName(std::string &name_new) { name = processStringName(name_new); }
 
     TemplateNames getTemplate(std::string name) {
         return processStringName(name);

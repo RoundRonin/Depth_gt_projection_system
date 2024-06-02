@@ -10,6 +10,7 @@
 #include "./impl/templategen.cpp"
 // #include "./impl/utils.cpp"
 
+#include <algorithm>
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
@@ -47,8 +48,6 @@ class Loop {
 
     vector<ImageProcessor::MatWithInfo> m_mask_mats;
     cv::Size m_resolution = {1280, 720};
-
-    int moment_in_time = 0;
 
    public:
     string window_name;
@@ -191,6 +190,10 @@ class Loop {
 
             if (mats_changed && mats_available) {
                 mask_mats = m_mask_mats;
+                std::ranges::sort(mask_mats, [](auto left, auto right) {
+                    return left.area > right.area;
+                });
+
                 m_printer.log_message({Printer::INFO,
                                        {(int)mask_mats.size()},
                                        "Changed masks, size",
@@ -270,7 +273,6 @@ class Loop {
             m_image_processor.setParametersFromSettings(m_settings.config);
             setResolution(static_cast<sl::RESOLUTION>(
                 m_settings.config.camera_resolution));
-            m_templates.setResolution(m_resolution);
             m_state.load_settings = false;
         } catch (const std::exception &e) {
             std::cerr << e.what() << 'in method \'loadSettings\'\n';
@@ -376,21 +378,18 @@ class Loop {
         try {
             // TODO color coding for objects via tamplates
             // use settings to define template characteristics
-
-            if (moment_in_time >= 60 * 10) moment_in_time = 0;
             // cleanup; 1 channels
-            image = cv::Mat::zeros(image.size(), CV_8UC3);
-
-            cv::Mat result(image.size(), image.type());
+            vector<cv::Mat> mats;
+            int idx = 0;
             for (auto mask : mask_mats) {
-                result = m_templates.gradient(moment_in_time, mask.mat, 5);
-                cv::add(image, result, image);
+                if (idx == 0) continue;
+                mats.push_back(mask.mat);
+                idx++;
             }
 
             imwrite(m_settings.config.output_location + "templated_image.png",
                     image);
 
-            moment_in_time++;
         } catch (const std::exception &e) {
             std::cerr << e.what() << 'in method \'applyTemplates\'\n';
             m_state.load_settings = false;
@@ -441,7 +440,7 @@ int main(int argc, char **argv) {
     ImageProcessor image_processor(settings.config.output_location, logger,
                                    printer);
     // Templates templates(settings.config.resolution);
-    Templates templates({1920, 1080});
+    Templates templates;
 
     Loop loop(settings, printer, logger, image_processor, templates);
     loop.Process();
