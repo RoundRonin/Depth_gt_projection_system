@@ -137,6 +137,9 @@ Printer::ERROR Logger::log(time precision) {
 
 // TODO make more safe by making sure elemets are erased (if pointers)
 Printer::ERROR Logger::flush() {
+    while (!m_timer_queue.empty()) {
+        drop();
+    }
     m_duration_vector.clear();
     return Printer::ERROR::SUCCESS;
 }

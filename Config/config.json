@@ -11,11 +11,13 @@
             "medium_limit": 10,
             "min_area": 10000,
             "max_objects": 10,
-            "threshold": 100,
-            "texture_threshold": 100,
+            "threshold": 1,
+            "texture_threshold": 10,
+            "fill_mode": true,
             "depth_mode": 3,
             "camera_distance": 20,
             "camera_resolution": 2,
+            "repeat_times": 1,
             "debug_level": "brief",
             "erodil": [
                 {

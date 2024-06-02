@@ -145,6 +145,7 @@ class Printer {
         ERROR_TURNED_OFF,
         ARGS_FAILURE,
         FLAGS_FAILURE,
+        FAILURE,
     };
 
     enum DEBUG_LVL { PRODUCTION, BRIEF, VERBOSE };
@@ -169,6 +170,7 @@ class Printer {
         {false, {"[WARN] Function is off"}},
         {true, {"[ERROR] Wrong Arguments\n[ERROR] For help use: -h", ""}},
         {false, {"[ERROR] Wrong Flags\n[ERROR] For help use: -h\n", ""}},
+        {true, {"[ERROR] ", " failed", ""}},
     };
 
     struct message {
@@ -194,6 +196,7 @@ class Printer {
 
 class Logger {
     // TODO use debug_lvl from printer
+    // TODO set names at start, not at end
     std::stack<std::chrono::time_point<std::chrono::high_resolution_clock>>
         m_timer_queue;
     std::vector<std::pair<std::string, std::chrono::microseconds>>
