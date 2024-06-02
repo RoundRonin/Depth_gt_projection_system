@@ -107,18 +107,21 @@ class CameraManager {
                             m_resolution);
 
         m_image_que.push_back(image_depth_cv);
-        if (m_image_que.size() > m_repeat_times) {
-            m_image_que.pop_front();
-        }
-        if (m_image_que.size() == m_repeat_times) {
-            auto agregator = m_image_que.front();
 
-            for (int i = 1; i < m_image_que.size(); i++) {
-                auto image = m_image_que.at(i);
-                cv::bitwise_and(image, agregator, agregator);
+        if (m_repeat_times >= 2) {
+            if (m_image_que.size() > m_repeat_times) {
+                m_image_que.pop_front();
             }
+            if (m_image_que.size() == m_repeat_times) {
+                auto agregator = m_image_que.front();
 
-            image_depth_cv = agregator;
+                for (int i = 1; i < m_image_que.size(); i++) {
+                    auto image = m_image_que.at(i);
+                    cv::bitwise_and(image, agregator, agregator);
+                }
+
+                image_depth_cv = agregator;
+            }
         }
 
         // sl::Mat measure_depth;
