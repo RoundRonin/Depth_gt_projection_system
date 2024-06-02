@@ -8,14 +8,20 @@
 #include "opencv2/opencv.hpp"
 #include "utils.hpp"
 
+struct Parameters {
+    uchar z_limit = 10;
+    uchar min_distance = 0;
+    uchar medium_limit = 10;
+    int min_area = 1000;
+    int max_objects = 5;
+    bool recurse = false;
+};
 // TODO restructure so that there would be initparams analog
 class ImageProcessor {
     std::string m_out_path;
-    uchar m_zlimit;
-    uchar m_min_distance;
-    uchar m_medium_limit;
     Logger &m_log;
     Printer &m_printer;
+    Parameters m_parameters;
 
    public:
     // TODO temp
@@ -51,13 +57,13 @@ class ImageProcessor {
 
     void write(std::string path);
 
+    void setParametersFromSettings(Config config);
+
     cv::Mat erode(int erosion_dst, int erosion_size);
 
     cv::Mat dilate(int dilation_dst, int dilation_size);
 
-    void findObjects(uchar zlimit = 10, uchar minDistance = 0,
-                     uchar medium_limit = 10, int minDots = 1000,
-                     int maxObjects = 5, bool recurse = false);
+    void findObjects();
 
     void pruneMasks();
 

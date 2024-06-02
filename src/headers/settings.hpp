@@ -30,13 +30,14 @@ struct Config {
     int debug_level = 0;
     string file_path;
 
-    //
+    // General
     bool save_logs = false;
     bool measure_time = false;
     string output_location = "./Result/";
     string config_location = "./Config/";
     string config_name = "Default";
 
+    // Recognition
     bool recurse = false;
     uchar z_limit = 10;
     uchar min_distance = 0;
@@ -44,11 +45,13 @@ struct Config {
     int min_area = 1000;
     int max_objects = 10;
 
+    // ZED
     bool fill_mode = false;
     int threshold = 50;
     int texture_threshold = 100;
     int depth_mode = 3;
     int camera_diatance = 20;
+    int camera_resolution = 2;  // HD1080
 
     struct Description {
         option opt;
@@ -101,8 +104,11 @@ struct Config {
          "define depth mode: 0-6: NONE, PERFORMANCE, QUALITY, ULTRA, "
          "NEURAL, NEURAL+, LAST ",
          TYPE::INT},
-        {{"camera_diatance", required_argument, 0, 'R'},
+        {{"camera_diatance", required_argument, 0, 'N'},
          "define camera distance [0 20]",
+         TYPE::INT},
+        {{"camera_resolution", required_argument, 0, 'R'},
+         "define camera resolution [0 8]",
          TYPE::INT},
     };
 
@@ -163,11 +169,28 @@ struct Config {
             if (set) texture_threshold = atoi(value);
             return to_string(texture_threshold);
         } else if (check(14)) {
-            if (set) depth_mode = atoi(value);
+            if (set) {
+                int depth = atoi(value);
+                if (depth <= 8 && depth >= 0) {
+                    depth_mode = atoi(value);
+                } else
+                    throw runtime_error(
+                        "Depth mode parameter is out of bounds");
+            }
             return to_string(depth_mode);
         } else if (check(15)) {
             if (set) camera_diatance = atoi(value);
             return to_string(camera_diatance);
+        } else if (check(16)) {
+            if (set) {
+                int resolution = atoi(value);
+                if (resolution <= 8 && resolution >= 0) {
+                    camera_resolution = atoi(value);
+                } else
+                    throw runtime_error(
+                        "Camera resolution parameter is out of bounds");
+            }
+            return to_string(camera_resolution);
         } else
             throw runtime_error("Wrong parameter");
     }
@@ -210,9 +233,17 @@ struct ErosionDilation {
     uchar size = 3;
 };
 
+// struct HoughLinesPsets {
+//     int rho = 5;
+//     int theta_denom = 140;
+//     int threshold = 20;
+//     int min_line_length = 60;
+//     int max_line_gap = 10;
+// };
+
 struct HoughLinesPsets {
-    int rho = 5;
-    int theta_denom = 140;
+    int rho = 10;
+    int theta_denom = 100;
     int threshold = 20;
     int min_line_length = 60;
     int max_line_gap = 10;
