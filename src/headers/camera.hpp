@@ -1,6 +1,8 @@
 #ifndef CAMERA_HPP
 #define CAMERA_HPP
 
+#include <array>
+#include <optional>
 #include <sl/Camera.hpp>
 #include <string>
 
@@ -60,9 +62,11 @@ class CameraManager {
         image_depth =
             new sl::Mat(m_resolution, sl::MAT_TYPE::U8_C4, sl::MEM::CPU);
         image_depth_cv = slMat2cvMat(*image_depth);
-        image_mask =
-            new sl::Mat(m_resolution, sl::MAT_TYPE::U8_C1, sl::MEM::CPU);
-        image_mask_cv = slMat2cvMat(*image_mask);
+        // image_mask =
+        //     new sl::Mat(m_resolution, sl::MAT_TYPE::U8_C1, sl::MEM::CPU);
+        // image_mask_cv = slMat2cvMat(*image_mask);
+        image_mask_cv =
+            cv::Mat::ones(m_resolution.height, m_resolution.height, CV_8U);
     }
 
     void restartCamera(Config config) {
@@ -112,24 +116,24 @@ class CameraManager {
         }
     }
 
-    void calibrate(std::string windowName, InteractiveState &state,
-                   std::string saveLocation, int minArea) {
+    void calibrate(std::string window_name, InteractiveState &state,
+                   std::string save_location, int min_area) {
         // TODO provide keyboard controller
         if (!m_zed.isOpened()) throw("Camera is not opened");
 
         Logger logger;
-        ImageProcessor imageProcessor(saveLocation, logger, m_printer);
+        ImageProcessor imageProcessor(save_location, logger, m_printer);
 
         cv::Mat white(m_resolution.height, m_resolution.width, CV_8UC4,
                       cv::Scalar(255, 255, 255, 255));
 
-        cv::imshow(windowName, white);
+        cv::imshow(window_name, white);
         state.key = cv::waitKey(100);
         int biggestMaskIdx = 0;
         while (state.calibrate) {
             imageProcessor.pruneMasks();
-
-            cv::imshow(windowName, white);
+            cout << "Calibrating!" << endl;
+            cv::imshow(window_name, white);
             state.key = cv::waitKey(100);
             state.action();
 
@@ -138,6 +142,37 @@ class CameraManager {
                 throw("Frame is not grabbed");
             m_zed.retrieveImage(*image_gray, sl::VIEW::LEFT_GRAY, sl::MEM::CPU,
                                 m_resolution);
+
+            double alpha = 3.0;
+            int beta = 0;
+
+            cv::Mat normalized_image =
+                cv::Mat::zeros(image_gray_cv.size(), image_gray_cv.type());
+            // for (int y = 0; y < image_gray_cv.rows; y++) {
+            //     for (int x = 0; x < image_gray_cv.cols; x++) {
+            //         if (image_gray_cv.at<uchar>(y, x) > 255 - beta) {
+            //             normalized_image.at<uchar>(y, x) = 255;
+            //         } else {
+            //             normalized_image.at<uchar>(y, x) =
+            //                 cv::saturate_cast<uchar>(
+            //                     alpha * image_gray_cv.at<uchar>(y, x) +
+            //                     beta);
+            //         }
+            //     }
+            // }
+            // cv::adaptiveThreshold(image_gray_cv, normalized_image, 255,
+            //                       ADAPTIVE_THRESH_MEAN_C, THRESH_BINARY, 7,
+            //                       0);
+            // cv::Scalar scr(1, 1, 1, 1);
+            // scr.col(0)
+
+            auto mean = cv::mean(image_gray_cv)[0];
+            std::cout << mean << std::endl;
+            // cv::threshold(image_gray_cv, normalized_image, mean + 20, 255,
+            //               ThresholdTypes::THRESH_BINARY);
+
+            imwrite("./Result/input_init.png", image_gray_cv);
+            imwrite("./Result/input_norm.png", normalized_image);
 
             int value = 0;
             int max = 0;
@@ -154,21 +189,28 @@ class CameraManager {
             }
 
             imageProcessor.getImage(&image_gray_cv);
-            imageProcessor.findObjects(10, max - 30, 10, minArea, 4, false);
+            Config cfg{.z_limit = 10,
+                       .min_distance = uchar(max - uchar((max - mean) / 2)),
+                       .medium_limit = 10,
+                       .min_area = min_area,
+                       .max_objects = 4,
+                       .recurse = false};
+            imageProcessor.setParametersFromSettings(cfg);
+            imageProcessor.findObjects();
 
             int area = 0;
-            int maxArea = 0;
+            int max_area = 0;
             for (int i = 0; i < imageProcessor.mask_mats.size(); i++) {
                 area = imageProcessor.mask_mats.at(i).area;
-                if (area > maxArea) {
-                    maxArea = area;
+                if (area > max_area) {
+                    max_area = area;
                     biggestMaskIdx = i;
                 }
             }
 
-            std::cout << std::endl << maxArea << std::endl;
+            std::cout << std::endl << max_area << std::endl;
 
-            if (maxArea < minArea) {
+            if (max_area < min_area) {
                 continue;
             } else {
                 image_mask_cv =
@@ -187,7 +229,7 @@ class CameraManager {
         if (state.calibrate) {
             imageProcessor.pruneMasks();
             (*image_mask) = cvMat2slMat(image_mask_cv);
-            (*image_mask).write((saveLocation + "ROI_mask.png").c_str());
+            (*image_mask).write((save_location + "ROI_mask.png").c_str());
             m_zed.setRegionOfInterest(*image_mask);
         }
     }
@@ -205,7 +247,8 @@ class CameraManager {
         m_initParams.coordinate_system =
             sl::COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
         m_initParams.sdk_verbose = 1;  // TODO cli?
-        m_initParams.camera_resolution = sl::RESOLUTION::AUTO;
+        m_initParams.camera_resolution =
+            static_cast<sl::RESOLUTION>(config.camera_resolution);
         m_initParams.coordinate_units = sl::UNIT::METER;
         m_initParams.depth_maximum_distance = config.camera_diatance;
         // TODO check for files existance
@@ -252,12 +295,72 @@ class CameraManager {
             throw std::runtime_error("Failed to find corners");
         }
 
-        // TODO sort ("rotate") points before findHomography
-
         vector<Point> default_corners = {Point(width, 0), Point(width, height),
                                          Point(0, 0), Point(0, height)};
+
+        int dist_threshold = 10;
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; i < 4; i++) {
+                if (i == j) continue;
+
+                auto p1 = found_corners.at(i);
+                auto p2 = found_corners.at(j);
+                if ((abs(p1.x - p2.x) < dist_threshold) &&
+
+                    (abs(p1.y - p2.y) < dist_threshold))
+                    throw runtime_error("Points too close");
+            }
+        }
+
+        auto distance2 = [](cv::Point A, cv::Point B) -> double {
+            return ((A.x - B.x) * (A.x - B.x) + (A.y - B.y) * (A.y - B.y));
+        };
+
+        vector<Point> sorted_found_corners(4, Point(0, 0));
+        array<optional<int>, 4> indices;
+
+        for (int d_idx = 0; d_idx < default_corners.size(); d_idx++) {
+            auto def_point = default_corners.at(d_idx);
+            double min_dist = INT32_MAX;
+            for (int f_idx = 0; f_idx < found_corners.size(); f_idx++) {
+                auto found_point = found_corners.at(f_idx);
+                double distance = distance2(def_point, found_point);
+
+                if (distance == min_dist)
+                    throw runtime_error("Bad point location");
+                if (distance < min_dist) {
+                    min_dist = distance;
+                    indices.at(d_idx) = f_idx;
+                }
+            }
+        }
+
+        std::cout << "Indices: ";
+        for (auto index : indices) {
+            if (index) std::cout << *index << "; ";
+        }
+        std::cout << "\n";
+
+        // TODO check if points are consecutive
+        for (int i = 0; i < indices.size(); i++) {
+            if (indices.at(i)) {
+                sorted_found_corners.at(i) = found_corners.at(*indices.at(i));
+            }
+        }
+
+        std::cout << "Points before: ";
+        for (auto point : found_corners) {
+            std::cout << "x: " << point.x << "y: " << point.y << "; ";
+        }
+        std::cout << "\n";
+        std::cout << "Points after: ";
+        for (auto point : sorted_found_corners) {
+            std::cout << "x: " << point.x << "y: " << point.y << "; ";
+        }
+        std::cout << "\n";
+
         if (found_corners.size() == 4) {
-            homography = findHomography(found_corners, default_corners);
+            homography = findHomography(sorted_found_corners, default_corners);
         }
 
         imwrite("./Result/input.png", out);
@@ -317,6 +420,14 @@ class CameraManager {
             m_hough_params.min_line_length, m_hough_params.max_line_gap);
         cout << "lines size:" << lines.size() << endl;
 
+        cv::Mat img_with_lines = out;
+        for (size_t i = 0; i < lines.size(); i++) {
+            Vec4i l = lines[i];
+            line(img_with_lines, Point(l[0], l[1]), Point(l[2], l[3]),
+                 Scalar(122, 122, 122), 3, LINE_AA);
+        }
+        imwrite("./Result/lines.png", img_with_lines);
+
         if (lines.size() == 4)  // we found the 4 sides
         {
             vector<Vec3f> params(4);
@@ -328,7 +439,8 @@ class CameraManager {
             // vector<Point> corners;
             for (int i = 0; i < params.size(); i++) {
                 for (int j = i; j < params.size();
-                     j++)  // j starts at i so we don't have duplicated points
+                     j++)  // j starts at i so we don't have duplicated
+                           // points
                 {
                     Point intersec = findIntersection(params[i], params[j]);
                     if ((intersec.x > 0) && (intersec.y > 0) &&

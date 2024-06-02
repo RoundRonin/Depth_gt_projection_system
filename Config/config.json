@@ -7,14 +7,15 @@
             "output_location": "./Result/",
             "config_location": "./Config/",
             "z_limit": 10,
-            "min_distance": 100,
+            "min_distance": 0,
             "medium_limit": 10,
             "min_area": 10000,
             "max_objects": 10,
-            "threshold": 50,
+            "threshold": 100,
             "texture_threshold": 100,
             "depth_mode": 3,
-            "cameradistance": 20,
+            "camera_distance": 20,
+            "camera_resolution": 2,
             "debug_level": "brief",
             "erodil": [
                 {
@@ -39,8 +40,8 @@
                 }
             ],
             "HoughLinesP": {
-                "rho": 1,
-                "theta_denom": 140,
+                "rho": 10,
+                "theta_denom": 100,
                 "threshold": 20,
                 "min_line_length": 60,
                 "max_line_gap": 10

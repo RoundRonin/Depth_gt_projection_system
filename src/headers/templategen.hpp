@@ -15,7 +15,9 @@ class Templates {
     int height = 720;
 
    public:
-    Templates(cv::Mat mask);
+    Templates(cv::Size resolution);
+
+    void setResolution(cv::Size resolution);
 
     cv::Mat gradient(int iter, cv::Mat mask, int a);
 
