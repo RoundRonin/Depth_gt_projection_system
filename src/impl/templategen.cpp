@@ -42,17 +42,17 @@ cv::Mat Templates::chessBoard(int iter, cv::Mat mask, int speedX, int speedY) {
 
     int offsetY = -(filler) + iter * speedY % (filler);
 
-    for (int y = 0; y < height + filler; y += chessboardSize) {
-        for (int x = 0; x < width + filler; x += chessboardSize) {
-            if (x / chessboardSize % 2 == (y / chessboardSize) % 2) {
+    for (int y = 0; y < height + filler; y += chessboard_size) {
+        for (int x = 0; x < width + filler; x += chessboard_size) {
+            if (x / chessboard_size % 2 == (y / chessboard_size) % 2) {
                 rectangle(frame, cv::Point(x + offsetX, y + offsetY),
-                          cv::Point(x + chessboardSize + offsetX,
-                                    y + chessboardSize + offsetY),
+                          cv::Point(x + chessboard_size + offsetX,
+                                    y + chessboard_size + offsetY),
                           cv::Scalar(255, 255, 255), -1);
             } else {
                 rectangle(frame, cv::Point(x + offsetX, y + offsetY),
-                          cv::Point(x + chessboardSize + offsetX,
-                                    y + chessboardSize + offsetY),
+                          cv::Point(x + chessboard_size + offsetX,
+                                    y + chessboard_size + offsetY),
                           cv::Scalar(0, 0, 0), -1);
             }
         }

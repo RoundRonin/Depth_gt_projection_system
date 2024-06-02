@@ -240,20 +240,75 @@ struct ErosionDilation {
     uchar size = 3;
 };
 
-// struct HoughLinesPsets {
-//     int rho = 5;
-//     int theta_denom = 140;
-//     int threshold = 20;
-//     int min_line_length = 60;
-//     int max_line_gap = 10;
-// };
-
 struct HoughLinesPsets {
     int rho = 10;
     int theta_denom = 100;
     int threshold = 20;
     int min_line_length = 60;
     int max_line_gap = 10;
+
+    void printParams() {
+        std::cout << "Hough Lines P params: " << std::endl;
+        std::cout << "    rho = " << rho << std::endl;
+        std::cout << "    theta_denom = " << theta_denom << std::endl;
+        std::cout << "    threshold = " << threshold << std::endl;
+        std::cout << "    min_line_length = " << min_line_length << std::endl;
+        std::cout << "    max_line_gap = " << max_line_gap << std::endl;
+        std::cout << std::endl;
+    }
+};
+
+struct Template {
+    std::vector<std::string> m_template_name_strings{"GRAD", "CHESS", "SOLID"};
+    enum TemplateNames { GRAD, CHESS, SOLID };
+
+    TemplateNames name;
+
+    int scale = 1;
+    int speed_x = 1;
+    int speed_y = 1;
+    int speed_multiplier = 1;
+    int param_a = 1;
+    int param_b = 1;
+    int param_c = 1;
+    vector<int> objects{1};
+
+    void setName(std::string name) { name = processStringName(name); }
+
+    TemplateNames getTemplate(std::string name) {
+        return processStringName(name);
+    }
+
+    std::string to_string(TemplateNames temp) {
+        return m_template_name_strings.at(static_cast<int>(temp));
+    }
+
+    void printParams() {
+        std::cout << "Template " << to_string(name) << " has params:\n";
+        std::cout << "    scale = " << scale << std::endl;
+        std::cout << "    speed_x = " << speed_x << std::endl;
+        std::cout << "    speed_y = " << speed_y << std::endl;
+        std::cout << "    speed_multiplier = " << speed_multiplier << std::endl;
+        std::cout << "    param_a = " << param_a << std::endl;
+        std::cout << "    param_b = " << param_b << std::endl;
+        std::cout << "    param_c = " << param_c << std::endl;
+
+        std::cout << "for objects: ";
+        for (auto object_number : objects) {
+            std::cout << object_number << "; ";
+        }
+        std::cout << std::endl;
+    }
+
+   private:
+    TemplateNames processStringName(std::string name) {
+        for (int i = 0; i < m_template_name_strings.size(); i++) {
+            if (m_template_name_strings.at(i) == name)
+                return static_cast<TemplateNames>(i);
+        }
+
+        throw std::runtime_error("No template with such name");
+    }
 };
 
 class Settings {
@@ -265,6 +320,7 @@ class Settings {
    public:
     Config config;
     vector<ErosionDilation> erodil;
+    vector<Template> templates;
     HoughLinesPsets hough_params;
 
     Settings() {
@@ -469,18 +525,7 @@ class Settings {
                     std::cerr << e.what() << '\n';
                 }
 
-                std::cout << "Hough Lines P params " << hough_params.rho
-                          << std::endl;
-                std::cout << "rho: " << hough_params.rho << std::endl;
-                std::cout << "theta_denom: " << hough_params.theta_denom
-                          << std::endl;
-                std::cout << "threshold: " << hough_params.threshold
-                          << std::endl;
-                std::cout << "min_line_length: " << hough_params.min_line_length
-                          << std::endl;
-                std::cout << "max_line_gap: " << hough_params.max_line_gap
-                          << std::endl;
-                std::cout << std::endl;
+                hough_params.printParams();
 
                 // Parse erodil
                 erodil.clear();
@@ -500,6 +545,37 @@ class Settings {
 
                 std::cout << "Erodil size: " << erodil.size() << std::endl;
                 found_config = true;
+
+                // Parse templates
+                templates.clear();
+                for (const auto &entry : configuration["Templates"]) {
+                    try {
+                        Template temp;
+                        string name = entry["name"].get<string>();
+                        temp.setName(name);
+                        temp.scale = entry["scale"].get<int>();
+                        temp.speed_x = entry["speed_x"].get<int>();
+                        temp.speed_y = entry["speed_y"].get<int>();
+                        temp.speed_multiplier =
+                            entry["speed_multiplier"].get<int>();
+                        temp.param_a = entry["param_a"].get<int>();
+                        temp.param_b = entry["param_b"].get<int>();
+                        temp.param_c = entry["param_c"].get<int>();
+
+                        temp.objects.clear();
+                        for (auto object_number : entry["objects"]) {
+                            temp.objects.push_back(object_number);
+                        }
+
+                        templates.push_back(temp);
+                    } catch (const std::exception &e) {
+                        std::cerr << e.what() << '\n';
+                    }
+                }
+
+                for (auto temp : templates) {
+                    temp.printParams();
+                }
             }
 
             if (!found_config)

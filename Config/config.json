@@ -47,7 +47,41 @@
                 "threshold": 20,
                 "min_line_length": 60,
                 "max_line_gap": 10
-            }
+            },
+            "Templates": [
+                {
+                    "name": "CHESS",
+                    "scale": 1,
+                    "speed_x": 1,
+                    "speed_y": 1,
+                    "speed_multiplier": 1,
+                    "param_a": 1,
+                    "param_b": 1,
+                    "param_c": 1,
+                    "objects": [
+                        0,
+                        3,
+                        5,
+                        7
+                    ]
+                },
+                {
+                    "name": "GRAD",
+                    "scale": 1,
+                    "speed_x": 1,
+                    "speed_y": 1,
+                    "speed_multiplier": 1,
+                    "param_a": 1,
+                    "param_b": 1,
+                    "param_c": 1,
+                    "objects": [
+                        1,
+                        2,
+                        4,
+                        6
+                    ]
+                }
+            ]
         },
         {
             "name": "Default2",
