@@ -317,6 +317,8 @@ class Settings {
 
     struct option *m_long_options;
 
+    int m_help_lenght = 30;
+
    public:
     Config config;
     vector<ErosionDilation> erodil;
@@ -614,8 +616,16 @@ class Settings {
         std::cout << std::endl;
         std::cout << "-h, --help                    show help" << std::endl;
 
-        for (auto discription : config.descriptions) {
-            std::cout << discription.desc << std::endl;
+        for (auto description : config.descriptions) {
+            string name = description.opt.name;
+
+            string str =
+                std::format("-{} --{}", char(description.opt.val), name);
+            string help = std::format("{}{}{}", str,
+                                      string(m_help_lenght - str.length(), ' '),
+                                      description.desc);
+
+            std::cout << help << std::endl;
         }
 
         std::cout << std::endl;
