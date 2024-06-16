@@ -6,6 +6,7 @@
 #include "opencv2/highgui.hpp"
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/opencv.hpp"
+#include "settings.hpp"
 #include "utils.hpp"
 
 struct Parameters {
@@ -15,8 +16,8 @@ struct Parameters {
     int min_area = 1000;
     int max_objects = 5;
     bool recurse = false;
+    bool force_convex = true;
 };
-// TODO restructure so that there would be initparams analog
 class ImageProcessor {
     std::string m_out_path;
     Logger &m_log;
@@ -24,40 +25,39 @@ class ImageProcessor {
     Parameters m_parameters;
 
    public:
-    // TODO temp
     cv::Mat m_objects;
 
     cv::Mat *image;
 
     struct MatWithInfo {
         cv::Mat mat;
+        cv::Point center{0, 0};
         int area = 0;
     };
 
     std::vector<MatWithInfo> mask_mats;
 
     struct Stats {
-        int &isited;
+        int &visited;
         int &amount;
+        cv::Point &center;
     };
 
    public:
     ImageProcessor(std::string output_location, Logger &log, Printer &printer);
 
-    // TODO check if image on the path exists, throw exception if it doesn't
     ImageProcessor(std::string path, std::string output_location, Logger &log,
                    Printer &printer);
 
     ImageProcessor(cv::Mat image, std::string output_location, Logger &log,
                    Printer &printer);
 
-    // TODO check if image is present before doing anything
-    void getImage(std::string path);
-    void getImage(cv::Mat *new_image);
+    void setImage(std::string path);
+    void setImage(cv::Mat *new_image);
 
     void write(std::string path);
 
-    void setParametersFromSettings(Config config);
+    void setParameters(Config config);
 
     cv::Mat erode(int erosion_dst, int erosion_size);
 
@@ -100,8 +100,9 @@ class ImageProcessor {
         }
     };
 
-    bool walk(cv::Mat &output, uchar prev_z, double &mediumVal, int x, int y,
-              uchar &id, int &visited, int &amount);
+    bool walk(cv::Mat &output, uchar prev_z, cv::Point prev_point,
+              double &mediumVal, cv::Point &center, int x, int y, uchar &id,
+              int &visited, int &amount);
 
     void paint(cv::Point start, cv::Mat &output, uchar &id, Stats stats);
 

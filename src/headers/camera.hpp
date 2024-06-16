@@ -138,19 +138,15 @@ class CameraManager {
             if ((*image_color)
                     .write("./Result/Color_image.png", sl::MEM::CPU) ==
                 sl::ERROR_CODE::SUCCESS)
-                m_printer.log_message(
-                    {m_succ, {0}, "Color image save", m_prod});
+                m_printer.logMessage({m_succ, {0}, "Color image save", m_prod});
             else
-                m_printer.log_message(
-                    {m_fail, {0}, "Color image save", m_prod});
+                m_printer.logMessage({m_fail, {0}, "Color image save", m_prod});
             if ((*image_depth)
                     .write("./Result/Depth_image.png", sl::MEM::CPU) ==
                 sl::ERROR_CODE::SUCCESS)
-                m_printer.log_message(
-                    {m_succ, {0}, "Depth image save", m_prod});
+                m_printer.logMessage({m_succ, {0}, "Depth image save", m_prod});
             else
-                m_printer.log_message(
-                    {m_fail, {0}, "Depth image save", m_prod});
+                m_printer.logMessage({m_fail, {0}, "Depth image save", m_prod});
         }
     }
 
@@ -209,14 +205,14 @@ class CameraManager {
                 if (value > max) max = value;
             }
 
-            imageProcessor.getImage(&image_gray_cv);
+            imageProcessor.setImage(&image_gray_cv);
             Config cfg{.z_limit = 10,
                        .min_distance = uchar(max - uchar((max - mean) / 2)),
                        .medium_limit = 10,
                        .min_area = min_area,
                        .max_objects = 4,
                        .recurse = false};
-            imageProcessor.setParametersFromSettings(cfg);
+            imageProcessor.setParameters(cfg);
             imageProcessor.findObjects();
 
             int area = 0;
@@ -267,8 +263,7 @@ class CameraManager {
     void setInitParams(Config config) {
         m_initParams.depth_mode =
             static_cast<sl::DEPTH_MODE>(config.depth_mode);
-        m_initParams.coordinate_system =
-            sl::COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
+        m_initParams.coordinate_system = sl::COORDINATE_SYSTEM::IMAGE;  // TODO
         m_initParams.sdk_verbose = 1;  // TODO cli?
         m_initParams.camera_resolution =
             static_cast<sl::RESOLUTION>(config.camera_resolution);
@@ -288,9 +283,9 @@ class CameraManager {
         int nb_frames = m_zed.getSVONumberOfFrames();
         m_svo_pos = (int)nb_frames / 2;  // TODO cli??
 
-        m_printer.log_message(
+        m_printer.logMessage(
             {Printer::INFO, {nb_frames}, "SVO contains (frames)", m_prod});
-        m_printer.log_message(
+        m_printer.logMessage(
             {Printer::INFO, {m_svo_pos}, "SVO position (frame)", m_prod});
 
         m_zed.setSVOPosition(m_svo_pos);
@@ -334,7 +329,6 @@ class CameraManager {
                 auto p1 = found_corners.at(i);
                 auto p2 = found_corners.at(j);
                 if ((abs(p1.x - p2.x) < dist_threshold) &&
-
                     (abs(p1.y - p2.y) < dist_threshold))
                     throw runtime_error("Points too close");
             }
@@ -442,6 +436,8 @@ class CameraManager {
         vector<Vec4i> lines;
         drawContours(image_hull, hull, 0, Scalar(255));
         imwrite("./Result/hull.png", image_hull);
+
+        m_hough_params.printParams();
         cv::HoughLinesP(
             image_hull, lines, m_hough_params.rho,
             CV_PI / m_hough_params.theta_denom, m_hough_params.threshold,

@@ -142,6 +142,7 @@ class Printer {
         INFO_USING,
         WARN_SMOL_AREA,
         WARN_OBJECT_LIMIT,
+        WARN_CONVEX_BROKEN,
         ERROR_TURNED_OFF,
         ARGS_FAILURE,
         FLAGS_FAILURE,
@@ -154,7 +155,7 @@ class Printer {
     DEBUG_LVL m_debug_level;
 
     struct LineWrapper {
-        bool IsNamed = false;
+        bool is_named = false;
         std::vector<std::string> line = {"[ERROR]", "__UNDEFINED__"};
     };
 
@@ -167,22 +168,25 @@ class Printer {
         {true, {"[INFO] using ", " = ", ""}},
         {false, {"[WARN] Area too smol (", "/", ")"}},
         {false, {"[WARN] Object limit exceeded (", ")"}},
+        {false,
+         {"[WARN] Convex rule is being broken at center (x = ", ", y = ",
+          ") value is ", ""}},
         {false, {"[WARN] Function is off"}},
         {true, {"[ERROR] Wrong Arguments\n[ERROR] For help use: -h", ""}},
         {false, {"[ERROR] Wrong Flags\n[ERROR] For help use: -h\n", ""}},
         {true, {"[ERROR] ", " failed", ""}},
     };
 
-    struct message {
+    struct Message {
         ERROR type = ERROR::UNDEFINED;
         std::vector<int> values = {-1, -1};  // TODO error value
         std::string name = "";
         DEBUG_LVL importance = VERBOSE;
 
-        auto operator<=>(const message &) const = default;
+        auto operator<=>(const Message &) const = default;
     };
 
-    std::pair<int, message> m_last_message_counted = {0, message()};
+    std::pair<int, Message> m_last_message_counted = {0, Message()};
 
    public:
     Printer() { m_debug_level = DEBUG_LVL::VERBOSE; }
@@ -190,8 +194,8 @@ class Printer {
     Printer(DEBUG_LVL debug_level) { setDebugLevel(debug_level); }
 
     void setDebugLevel(DEBUG_LVL debug_level);
-    void log_message(message msg);
-    void log_message(std::exception exception);
+    void logMessage(Message msg);
+    void logMessage(std::exception exception);
 };
 
 class Logger {
@@ -210,18 +214,18 @@ class Logger {
     char m_debug_level;
 
    public:
-    enum time { second = 1, ms = 1000, mcs = 1000000 };
+    enum Time { second = 1, ms = 1000, mcs = 1000000 };
 
-    std::string m_log_name;
+    std::string log_name;
 
    private:
    public:
     // Logger()
-    //     : m_log_name("log"), m_version(0), m_batch(0), m_save_toggle(false),
+    //     : log_name("log"), m_version(0), m_batch(0), m_save_toggle(false),
     //       m_time_toggle(false), m_debug_level(0) {}
 
     // Logger(std::string log_name = "log", int version = 0, int batch = 0)
-    //     : m_log_name(log_name), m_version(version), m_batch(batch),
+    //     : log_name(log_name), m_version(version), m_batch(batch),
     //       m_save_toggle(true), m_time_toggle(true), m_debug_level(2) {}
 
     Logger(std::string log_name = "log", int version = 0, int batch = 0,
@@ -232,16 +236,16 @@ class Logger {
           m_save_toggle(save),
           m_time_toggle(measure_time),
           m_debug_level(debug_level),
-          m_log_name(log_name) {}  // TODO add checks for debug level
+          log_name(log_name) {}  // TODO add checks for debug level
 
     Printer::ERROR start();
     Printer::ERROR stop(std::string timer_name = "default timer");
     Printer::ERROR drop();
-    Printer::ERROR print(time precision = time::second);
-    Printer::ERROR log(time precision = time::second);
+    Printer::ERROR print(Time precision = Time::second);
+    Printer::ERROR log(Time precision = Time::second);
     Printer::ERROR flush();
 
-    // Accepted message structure: {Logger::ERROR, {val1, val2}, "name"}
+    // Accepted Message structure: {Logger::ERROR, {val1, val2}, "name"}
 
    private:
     std::string get_formatted_local_time();

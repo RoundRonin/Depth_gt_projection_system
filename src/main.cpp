@@ -1,39 +1,17 @@
 
-#include <csignal>
-// #include <iostream>
-
-// #include "../include/sl_utils.hpp"
-#include "./headers/camera.hpp"
-// #include "./headers/converter.hpp"
-#include "./headers/settings.hpp"
-// #include "./impl/object_recognition.cpp"
-#include "./impl/templategen.cpp"
-// #include "./impl/utils.cpp"
-
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
+#include <csignal>
 #include <mutex>
 #include <thread>
 
+#include "./headers/camera.hpp"
+#include "./headers/settings.hpp"
+#include "./impl/templategen.cpp"
+
 using namespace cv;
 using namespace std;
-// using namespace dm;
-
-// TODO check if an image exists in the location
-// TODO frontend
-// TODO     show log statistics
-// TODO
-// TODO backend
-// TODO     save test image in a "database"
-// TODO
-// TODO
-
-// TODO free cam on process kill
-
-// TODO check for cam movement and activate recalibration
-
-// TODO join threads on kill
 
 void signalHandler(int signalNumber);
 
@@ -88,7 +66,7 @@ class Loop {
 
    private:
     void imageProc() {
-        m_image_processor.getImage(m_settings.config.file_path);
+        m_image_processor.setImage(m_settings.config.file_path);
     }
 
     void zedProc() { zed::CameraManager cam_man(m_printer); }
@@ -99,13 +77,10 @@ class Loop {
         cv::setWindowProperty(window_name,
                               cv::WindowPropertyFlags::WND_PROP_FULLSCREEN,
                               cv::WindowFlags::WINDOW_FULLSCREEN);
-        // Templates templates(image.image);
         m_state.calibrate = true;
     }
 
     void doTheLoop() {
-        // camMan.imageProcessing(false);
-
         m_state.printHelp();
 
         std::thread readerThread(&Loop::acquireInformation, this);
@@ -176,28 +151,29 @@ class Loop {
 
         auto print_mode = [this](string mode, int value = 0,
                                  string value_name = "") {
-            m_printer.log_message({Printer::INFO,
-                                   {value},
-                                   "Using " + mode + " mode; " + value_name,
-                                   Printer::DEBUG_LVL::PRODUCTION});
+            m_printer.logMessage({Printer::INFO,
+                                  {value},
+                                  "Using " + mode + " mode; " + value_name,
+                                  Printer::DEBUG_LVL::PRODUCTION});
         };
 
         vector<ImageProcessor::MatWithInfo> mask_mats = m_mask_mats;
+        vector<ImageProcessor::MatWithInfo> old_mask_mats;
+
+        cv::Mat image_none = cv::Mat::zeros(image.size(), CV_8UC4);
 
         while (m_state.keep_running) {
             m_state.next = false;
             m_state.idx = 0;
 
             if (mats_changed && mats_available) {
+                old_mask_mats = mask_mats;
                 mask_mats = m_mask_mats;
-                std::ranges::sort(mask_mats, [](auto left, auto right) {
-                    return left.area > right.area;
-                });
 
-                m_printer.log_message({Printer::INFO,
-                                       {(int)mask_mats.size()},
-                                       "Changed masks, size",
-                                       Printer::DEBUG_LVL::PRODUCTION});
+                m_printer.logMessage({Printer::INFO,
+                                      {(int)mask_mats.size()},
+                                      "Changed masks, size",
+                                      Printer::DEBUG_LVL::PRODUCTION});
                 mats_changed = false;
             }
 
@@ -205,13 +181,13 @@ class Loop {
             settings_condition.wait(
                 lock_settings, [this] { return settings_available.load(); });
             std::unique_lock<std::mutex> lock_imshow(calibration_mutex);
-            mats_condition.wait(lock_imshow,
-                                [this] { return imshow_available.load(); });
+            calibration_condition.wait(
+                lock_imshow, [this] { return imshow_available.load(); });
 
             switch (m_state.mode) {
                 case InteractiveState::Mode::NONE: {
                     print_mode("NONE");
-                    image = cv::Mat::zeros(image.size(), CV_8UC4);
+                    image = image_none;
                     break;
                 }
                 case InteractiveState::Mode::WHITE: {
@@ -231,15 +207,13 @@ class Loop {
                 }
                 case InteractiveState::Mode::DEPTH: {
                     print_mode("DEPTH");
+
+                    image = *m_image_processor.image;
                     break;
                 }
                 case InteractiveState::Mode::OBJECTS: {
                     print_mode("OBJECTS");
 
-                    if (!mats_available.load()) break;
-                    // std::unique_lock<std::mutex> lock_mats(mats_mutex);
-                    // mats_condition.wait(
-                    // lock_mats, [this] { return mats_available.load(); });
                     // ! has problems, arrays are off??
                     maskAgregator(image, mask_mats);
                     break;
@@ -247,7 +221,7 @@ class Loop {
                 case InteractiveState::Mode::TEMPLATES: {
                     print_mode("TEMPLATES");
 
-                    applyTemplates(image, mask_mats);
+                    applyTemplates(image, mask_mats, old_mask_mats);
                     break;
                 }
                 default:
@@ -262,15 +236,15 @@ class Loop {
 
     void loadSettings(zed::CameraManager &cam_man) {
         try {
-            m_printer.log_message({Printer::ERROR::INFO,
-                                   {0},
-                                   "Loading config",
-                                   Printer::DEBUG_LVL::PRODUCTION});
+            m_printer.logMessage({Printer::ERROR::INFO,
+                                  {0},
+                                  "Loading config",
+                                  Printer::DEBUG_LVL::PRODUCTION});
             m_settings.ParseConfig();
 
             cam_man.updateRunParams(m_settings.config);
             cam_man.updateHough(m_settings.hough_params);
-            m_image_processor.setParametersFromSettings(m_settings.config);
+            m_image_processor.setParameters(m_settings.config);
             setResolution(static_cast<sl::RESOLUTION>(
                 m_settings.config.camera_resolution));
             m_state.load_settings = false;
@@ -282,10 +256,10 @@ class Loop {
 
     void restartCamera(zed::CameraManager &cam_man) {
         try {
-            m_printer.log_message({Printer::ERROR::INFO,
-                                   {0},
-                                   "Restarting camera",
-                                   Printer::DEBUG_LVL::PRODUCTION});
+            m_printer.logMessage({Printer::ERROR::INFO,
+                                  {0},
+                                  "Restarting camera",
+                                  Printer::DEBUG_LVL::PRODUCTION});
             m_settings.ParseConfig();
 
             cam_man.restartCamera(m_settings.config);
@@ -338,7 +312,7 @@ class Loop {
             if (image.channels() == 4) cvtColor(image, image, COLOR_BGRA2GRAY);
             if (image.channels() == 3) cvtColor(image, image, COLOR_BGR2GRAY);
 
-            m_image_processor.getImage(&image);
+            m_image_processor.setImage(&image);
 
             for (auto action : m_settings.erodil) {
                 if (action.type == ErosionDilation::Dilation)
@@ -347,7 +321,7 @@ class Loop {
                     m_image_processor.erode(action.distance, action.size);
             }
 
-            m_image_processor.setParametersFromSettings(m_settings.config);
+            m_image_processor.setParameters(m_settings.config);
             m_image_processor.findObjects();
 
             m_mask_mats = m_image_processor.mask_mats;
@@ -362,10 +336,6 @@ class Loop {
         try {
             for (auto mask : mask_mats) {
                 image = cv::Mat::zeros(image.size(), CV_8UC3);
-                // std::cout << "mat1 size: " << image.size()
-                //           << ", channels: " << image.channels() << std::endl;
-                // std::cout << "mat2 size: " << mat2.size()
-                //           << ", channels: " << mat2.channels() << std::endl;
                 cv::add(image, mask.mat, image);
             }
         } catch (const std::exception &e) {
@@ -374,15 +344,13 @@ class Loop {
     }
 
     void applyTemplates(cv::Mat &image,
-                        vector<ImageProcessor::MatWithInfo> &mask_mats) {
+                        vector<ImageProcessor::MatWithInfo> &mask_mats,
+                        vector<ImageProcessor::MatWithInfo> &old_mask_mats) {
         try {
-            // TODO color coding for objects via tamplates
-            // use settings to define template characteristics
-            // cleanup; 1 channels
             image = cv::Mat::zeros(image.size(), CV_8UC3);
             vector<cv::Mat> mats;
             for (int i = 0; i < mask_mats.size(); i++) {
-                if (i == 0) continue;
+                // if (i == 0) continue;
                 auto mask = mask_mats.at(i);
                 mats.push_back(mask.mat);
             }
@@ -396,6 +364,102 @@ class Loop {
             std::cerr << e.what() << 'in method \'applyTemplates\'\n';
             m_state.load_settings = false;
         }
+        // try {
+        //     // TODO color coding for objects via tamplates
+        //     // use settings to define template characteristics
+        //     // cleanup; 1 channels
+        //     image = cv::Mat::zeros(image.size(), CV_8UC3);
+        //     vector<ImageProcessor::MatWithInfo> mask_mats_clean;
+        //     vector<ImageProcessor::MatWithInfo> old_mats_clean;
+
+        //     int bigger_size = mask_mats.size() > old_mask_mats.size()
+        //                           ? mask_mats.size()
+        //                           : old_mask_mats.size();
+
+        //     vector<optional<ImageProcessor::MatWithInfo>> new_mask_mats(
+        //         bigger_size);
+        //     vector<optional<cv::Mat>> mats;
+
+        //     for (int i = 0;
+        //          i < mask_mats.size() && i < m_settings.config.max_objects;
+        //          i++) {
+        //         if (i == 0) continue;
+        //         auto mask = mask_mats.at(i);
+        //         mask_mats_clean.push_back(mask);
+
+        //         // auto mask = mask_mats.at(i);
+        //         // mats.push_back(mask.mat);
+        //     }
+
+        //     if (!old_mask_mats.empty()) {
+        //         auto distance2 = [](cv::Point A, cv::Point B) -> double {
+        //             return ((A.x - B.x) * (A.x - B.x) +
+        //                     (A.y - B.y) * (A.y - B.y));
+        //         };
+
+        //         for (int i = 0; i < old_mask_mats.size() &&
+        //                         i < m_settings.config.max_objects;
+        //              i++) {
+        //             if (i == 0) continue;
+        //             auto mask = old_mask_mats.at(i);
+        //             old_mats_clean.push_back(mask);
+        //         }
+
+        //         vector<optional<int>> indices(1000, nullopt);
+        //         vector<bool> are_accounted(mask_mats_clean.size(), false);
+
+        //         for (int d_idx = 0; d_idx < old_mats_clean.size(); d_idx++) {
+        //             auto old_mat = old_mats_clean.at(d_idx);
+        //             double min_dist = INT32_MAX;
+        //             for (int f_idx = 0; f_idx < mask_mats_clean.size();
+        //                  f_idx++) {
+        //                 auto new_mat = mask_mats_clean.at(f_idx);
+        //                 double distance =
+        //                     distance2(old_mat.center, new_mat.center);
+
+        //                 if (distance == min_dist)
+        //                     throw runtime_error("Bad point location");
+        //                 if (distance < min_dist) {
+        //                     min_dist = distance;
+        //                     indices.at(d_idx) = f_idx;
+        //                     are_accounted.at(f_idx) = true;
+        //                 }
+        //             }
+        //         }
+
+        //         for (int i = 0; i < indices.size(); i++) {
+        //             if (indices.at(i)) {
+        //                 new_mask_mats.at(i) =
+        //                     mask_mats_clean.at(*indices.at(i));
+        //             }
+        //         }
+
+        //         for (int i = 0; i < are_accounted.size(); i++) {
+        //             if (are_accounted.at(i)) continue;
+        //             new_mask_mats.push_back(mask_mats_clean.at(i));
+        //         }
+
+        //         for (auto mask : new_mask_mats) {
+        //             if (mask)
+        //                 mats.push_back((*mask).mat);
+        //             else
+        //                 mats.push_back(nullopt);
+        //         }
+        //     } else {
+        //         for (auto mask : mask_mats_clean) {
+        //             mats.push_back(mask.mat);
+        //         }
+        //     }
+
+        //     m_templates.applyTemplates(m_settings.templates, mats, image);
+
+        //     imwrite(m_settings.config.output_location +
+        //     "templated_image.png",
+        //             image);
+        // } catch (const std::exception &e) {
+        //     std::cerr << e.what() << 'in method \'applyTemplates\'\n';
+        //     m_state.load_settings = false;
+        // }
     }
 
     void setResolution(sl::RESOLUTION resolution) {
@@ -422,16 +486,12 @@ int main(int argc, char **argv) {
     Settings settings;
     Printer printer;
 
-    auto Result = settings.Init(argc, argv);
-    if (Result == Printer::ERROR::ARGS_FAILURE) {
-        printer.log_message({Printer::ERROR::ARGS_FAILURE, {}, argv[0]});
-        throw runtime_error("Settings failure");
-    }
     try {
+        settings.Init(argc, argv);
         settings.Parse();
     } catch (const std::exception &x) {
-        printer.log_message({Printer::ERROR::FLAGS_FAILURE, {}, argv[0]});
-        printer.log_message(x);
+        printer.logMessage({Printer::ERROR::FLAGS_FAILURE, {}, argv[0]});
+        printer.logMessage(x);
         throw runtime_error("Settings failure");
     }
     int lvl = settings.config.debug_level;
@@ -451,8 +511,7 @@ int main(int argc, char **argv) {
 
 // TODO graceful stop: destroy the class, join its threads
 void signalHandler(int signalNumber) {
-    if (signalNumber == SIGTERM || signalNumber == SIGHUP) {
-        std::cout << "Recieved interupt signal: " << signalNumber
+    if (signalNumber == SIGTERM || signalNumber == SIGHUP) {        std::cout << "Recieved interupt signal: " << signalNumber
                   << "\nExiting..." << std::endl;
         exit(signalNumber);
     }

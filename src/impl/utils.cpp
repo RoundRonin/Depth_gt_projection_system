@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-void Printer::log_message(message msg) {
+void Printer::logMessage(Message msg) {
     auto [type, values, name, importance] = msg;
     if (importance > m_debug_level) return;
 
@@ -31,7 +31,7 @@ void Printer::log_message(message msg) {
     }
 
     LineWrapper wrapped_log = m_error_messages.at(type);
-    bool isNamed = wrapped_log.IsNamed;
+    bool isNamed = wrapped_log.is_named;
     auto log_line = wrapped_log.line;
     int shift = 0;
     std::string print_line = "";
@@ -49,7 +49,7 @@ void Printer::log_message(message msg) {
     std::cerr << line_start << print_line << line_end;
 }
 
-void Printer::log_message(std::exception exception) {
+void Printer::logMessage(std::exception exception) {
     std::cerr << "[ERROR] " << exception.what() << std::endl;
 }
 
@@ -90,7 +90,7 @@ Printer::ERROR Logger::drop() {
     return Printer::ERROR::ERROR_TURNED_OFF;
 }
 
-Printer::ERROR Logger::print(time precision) {
+Printer::ERROR Logger::print(Time precision) {
     if (m_time_toggle && m_debug_level >= 1) {
         for (auto duration_entry : m_duration_vector) {
             double time =
@@ -98,7 +98,7 @@ Printer::ERROR Logger::print(time precision) {
                 precision;  // TODO rounding
 
             std::cerr << "[INFO] " << duration_entry.first << " = " << time
-                      << std::endl;  // TODO rework to use log_message
+                      << std::endl;  // TODO rework to use logMessage
         }
 
         return Printer::ERROR::SUCCESS;
@@ -106,7 +106,7 @@ Printer::ERROR Logger::print(time precision) {
     return Printer::ERROR::ERROR_TURNED_OFF;
 }
 
-Printer::ERROR Logger::log(time precision) {
+Printer::ERROR Logger::log(Time precision) {
     if (m_time_toggle && m_save_toggle) {
         std::string timers = "";
         for (auto duration_entry : m_duration_vector) {
@@ -155,7 +155,7 @@ std::string Logger::get_formatted_local_time() {
 }
 
 void Logger::save_to_file(std::string log_lines) {
-    std::string file_path = "logs/" + m_log_name + ".json";
+    std::string file_path = "logs/" + log_name + ".json";
     if (!std::filesystem::exists(file_path)) {
         std::ofstream file(file_path);
         file << "[";

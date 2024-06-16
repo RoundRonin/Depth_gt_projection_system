@@ -36,7 +36,7 @@ ImageProcessor::ImageProcessor(cv::Mat o_image, std::string output_location,
     m_out_path = output_location;  // TODO add checks
 }
 
-void ImageProcessor::getImage(string path) {
+void ImageProcessor::setImage(string path) {
     // TODO add checks, return error
     cv::Mat new_image = imread(path, IMREAD_GRAYSCALE);
     CV_Assert(new_image.depth() == CV_8U);
@@ -46,7 +46,7 @@ void ImageProcessor::getImage(string path) {
     m_objects = cv::Mat((*image).rows, (*image).cols, CV_8U, double(0));
 }
 
-void ImageProcessor::getImage(cv::Mat *new_image) {
+void ImageProcessor::setImage(cv::Mat *new_image) {
     // TODO add checks, return error
     CV_Assert((*new_image).depth() == CV_8U);
     CV_Assert((*new_image).channels() == 1);
@@ -63,7 +63,7 @@ void ImageProcessor::write(string path) {
     imwrite(path, (*image));
 }
 
-void ImageProcessor::setParametersFromSettings(Config config) {
+void ImageProcessor::setParameters(Config config) {
     // TODO cheks?
     m_parameters.z_limit = config.z_limit;
     m_parameters.min_distance = config.min_distance;
@@ -71,6 +71,7 @@ void ImageProcessor::setParametersFromSettings(Config config) {
     m_parameters.min_area = config.min_area;
     m_parameters.max_objects = config.max_objects;
     m_parameters.recurse = config.recurse;
+    m_parameters.force_convex = config.force_convex;
 }
 
 cv::Mat ImageProcessor::erode(int erosion_dst, int erosion_size) {
@@ -105,19 +106,21 @@ void ImageProcessor::findObjects() {
     auto i_info = Printer::ERROR::INFO;
     auto w_smol = Printer::ERROR::WARN_SMOL_AREA;
     auto w_limit = Printer::ERROR::WARN_OBJECT_LIMIT;
+    auto c_broken = Printer::ERROR::WARN_CONVEX_BROKEN;
 
     auto p = Printer::DEBUG_LVL::PRODUCTION;
     // auto b = Printer::DEBUG_LVL::BRIEF;
 
-    m_printer.log_message(
+    m_printer.logMessage(
         {i_use, {(int)m_parameters.z_limit}, "depth difference limit", p});
-    m_printer.log_message(
+    m_printer.logMessage(
         {i_use, {(int)m_parameters.min_distance}, "min distance", p});
-    m_printer.log_message(
+    m_printer.logMessage(
         {i_use, {(int)m_parameters.medium_limit}, "medium limit", p});
-    m_printer.log_message({i_use, {m_parameters.min_area}, "min area", p});
-    m_printer.log_message(
-        {i_use, {m_parameters.recurse ? 1 : 0}, "recurse", p});
+    m_printer.logMessage({i_use, {m_parameters.min_area}, "min area", p});
+    m_printer.logMessage({i_use, {m_parameters.recurse ? 1 : 0}, "recurse", p});
+    m_printer.logMessage(
+        {i_use, {m_parameters.force_convex ? 1 : 0}, "convex", p});
 
     // ImageProcessor info
     int nRows = (*image).rows;
@@ -128,8 +131,9 @@ void ImageProcessor::findObjects() {
     int imageLeft = size;
     int visited = 0;
     int amount = 0;
+    Point center(0, 0);
     int x, y = 0;
-    Stats stats = {visited, amount};
+    Stats stats = {visited, amount, center};
     uchar id = UCHAR_MAX;
 
     // Preinit
@@ -152,6 +156,7 @@ void ImageProcessor::findObjects() {
 
         m_log.start();
         amount = 0;
+        center = {0, 0};
         imageLeft = size - y * nCols + x;  // TODO
         if (m_parameters.recurse)
             paint(current, output, id, stats);
@@ -159,32 +164,46 @@ void ImageProcessor::findObjects() {
             iterate(current, output, imageLeft, id, stats);
 
         if (amount < m_parameters.min_area) {
-            m_printer.log_message({w_smol, {amount, m_parameters.min_area}});
+            m_printer.logMessage({w_smol, {amount, m_parameters.min_area}});
             m_log.drop();
             continue;
         }
 
-        if (mask_mats.size() < m_parameters.max_objects)
-            mask_mats.push_back({output, amount});
-        else {
-            m_printer.log_message({w_limit, {m_parameters.max_objects}});
+        if (m_parameters.force_convex && output.at<uchar>(center) > 0) {
+            mask_mats.push_back({output, center, amount});
+        } else {
+            m_printer.logMessage(
+                {c_broken,
+                 {center.x, center.y, output.at<uchar>(center)},
+                 "",
+                 p});
             m_log.drop();
             continue;
         }
+        // if (mask_mats.size() < m_parameters.max_objects)
+        //     mask_mats.push_back({output, amount});
+        // else {
+        //     m_printer.logMessage({w_limit, {m_parameters.max_objects}});
+        //     m_log.drop();
+        //     continue;
+        // }
 
         m_log.stop("seek");
     }
 
-    m_printer.log_message({i_info, {visited}, "visited", p});
-    m_printer.log_message(
-        {i_info, {(*image).rows * (*image).cols}, "total", p});
+    m_printer.logMessage({i_info, {visited}, "visited", p});
+    m_printer.logMessage({i_info, {(*image).rows * (*image).cols}, "total", p});
 
     m_log.stop("overall");
     m_log.print();
     m_log.log();
     m_log.flush();
 
-    for (int i = 0; i < mask_mats.size(); i++) {
+    std::ranges::sort(mask_mats, [](auto left, auto right) {
+        return left.area > right.area;
+    });
+
+    for (int i = 0; i < mask_mats.size() && i < m_parameters.max_objects; i++) {
         imwrite(m_out_path + "mask " + to_string(i) + " .png",
                 mask_mats.at(i).mat);
     }
@@ -197,7 +216,7 @@ void ImageProcessor::pruneMasks() { mask_mats.clear(); }
 
 void ImageProcessor::iterate(Point start, cv::Mat &output, int imageLeft,
                              uchar &id, Stats stats) {
-    auto [visited, amount] = stats;
+    auto [visited, amount, center] = stats;
 
     output = cv::Mat((*image).rows, (*image).cols, CV_8U, double(0));
     m_objects.at<uchar>(start) = id;
@@ -213,7 +232,10 @@ void ImageProcessor::iterate(Point start, cv::Mat &output, int imageLeft,
     vector<PointDirs> list{pd};
 
     double mediumVal = 0;
+    cv::Point center_inner = start;
 
+    double x = (double)start.x;
+    double y = (double)start.y;
     int iter = 0;
     while (list.size() != 0 && iter < imageLeft * 4) {
         iter++;
@@ -222,6 +244,9 @@ void ImageProcessor::iterate(Point start, cv::Mat &output, int imageLeft,
 
         previous_z = (*image).at<uchar>(pd.coordinates);
         mediumVal = (mediumVal * amount + previous_z) / (amount + 1);
+        x = (x * amount + pd.coordinates.x) / (amount + 1);
+        y = (y * amount + pd.coordinates.y) / (amount + 1);
+
         for (auto dir : pd.directions) {
             point_to_check = pd.coordinates;
             point_to_check += dir;
@@ -256,21 +281,26 @@ void ImageProcessor::iterate(Point start, cv::Mat &output, int imageLeft,
             list.push_back({point_to_check, dirs.nextDirectionList(dir)});
         }
     }
+
+    center = {(int)x, (int)y};
 }
 
 void ImageProcessor::paint(Point start, cv::Mat &output, uchar &id,
                            Stats stats) {
-    auto [visited, amount] = stats;
+    auto [visited, amount, center] = stats;
 
     output = cv::Mat((*image).rows, (*image).cols, CV_8U, double(0));
     uchar start_z = (*image).at<uchar>(start);
     double mediumVal = start_z;
+    center = start;
 
-    walk(output, start_z, mediumVal, start.x, start.y, id, visited, amount);
+    walk(output, start_z, center, mediumVal, center, start.x, start.y, id,
+         visited, amount);
 }
 
-bool ImageProcessor::walk(cv::Mat &output, uchar prev_z, double &mediumVal,
-                          int x, int y, uchar &id, int &visited, int &amount) {
+bool ImageProcessor::walk(cv::Mat &output, uchar prev_z, cv::Point prev_point,
+                          double &mediumVal, cv::Point &center, int x, int y,
+                          uchar &id, int &visited, int &amount) {
     visited++;
     // Basic checks
     if (x >= (*image).cols || y >= (*image).rows || x < 0 || y < 0)
@@ -281,8 +311,6 @@ bool ImageProcessor::walk(cv::Mat &output, uchar prev_z, double &mediumVal,
     if (abs((*image).at<uchar>(current) - prev_z) > m_parameters.z_limit)
         return false;
 
-    // Additional checks
-    // medium check
     if (abs((*image).at<uchar>(current) - mediumVal) >
         m_parameters.medium_limit)
         return false;
@@ -291,9 +319,10 @@ bool ImageProcessor::walk(cv::Mat &output, uchar prev_z, double &mediumVal,
     output.at<uchar>(current) = id;     // Painting the pixel
     amount++;
     mediumVal = (mediumVal * amount + prev_z) / (amount + 1);
+    center = (center * amount + prev_point) / (amount + 1);
     // recurse
     for (int i = 0; i < 4; i++) {
-        walk(output, (*image).at<uchar>(current), mediumVal,
+        walk(output, (*image).at<uchar>(current), current, mediumVal, center,
              current.x + directions[i][0], current.y + directions[i][1], id,
              visited, amount);
     }

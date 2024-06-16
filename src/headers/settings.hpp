@@ -39,6 +39,7 @@ struct Config {
 
     // Recognition
     bool recurse = false;
+    bool force_convex = true;  // TODO fix true cant false
     uchar z_limit = 10;
     uchar min_distance = 0;
     uchar medium_limit = 10;
@@ -77,6 +78,9 @@ struct Config {
 
         {{"recurse", no_argument, 0, 'r'},
          "toggle recursion [Dangerous]",
+         TYPE::BOOL},
+        {{"force_convex", no_argument, 0, 'x'},
+         "toggle forcing convex for all objects",
          TYPE::BOOL},
         {{"z_limit", required_argument, 0, 'Z'},
          "define max difference between two points [0, 255]",
@@ -149,30 +153,33 @@ struct Config {
             if (set) recurse = true;
             return recurse ? "true" : "false";
         } else if (check(6)) {
+            if (set) force_convex = true;
+            return force_convex ? "true" : "false";
+        } else if (check(7)) {
             if (set) z_limit = atoi(value);
             return to_string(z_limit);
-        } else if (check(7)) {
+        } else if (check(8)) {
             if (set) min_distance = atoi(value);
             return to_string(min_distance);
-        } else if (check(8)) {
+        } else if (check(9)) {
             if (set) medium_limit = atoi(value);
             return to_string(medium_limit);
-        } else if (check(9)) {
+        } else if (check(10)) {
             if (set) min_area = atoi(value);
             return to_string(min_area);
-        } else if (check(10)) {
+        } else if (check(11)) {
             if (set) max_objects = atoi(value);
             return to_string(max_objects);
-        } else if (check(11)) {
+        } else if (check(12)) {
             if (set) fill_mode = true;
             return fill_mode ? "true" : "false";
-        } else if (check(12)) {
+        } else if (check(13)) {
             if (set) threshold = atoi(value);
             return to_string(threshold);
-        } else if (check(13)) {
+        } else if (check(14)) {
             if (set) texture_threshold = atoi(value);
             return to_string(texture_threshold);
-        } else if (check(14)) {
+        } else if (check(15)) {
             if (set) {
                 int depth = atoi(value);
                 if (depth <= 8 && depth >= 0) {
@@ -182,10 +189,10 @@ struct Config {
                         "Depth mode parameter is out of bounds");
             }
             return to_string(depth_mode);
-        } else if (check(15)) {
+        } else if (check(16)) {
             if (set) camera_diatance = atoi(value);
             return to_string(camera_diatance);
-        } else if (check(16)) {
+        } else if (check(17)) {
             if (set) {
                 int resolution = atoi(value);
                 if (resolution <= 8 && resolution >= 0) {
@@ -195,14 +202,13 @@ struct Config {
                         "Camera resolution parameter is out of bounds");
             }
             return to_string(camera_resolution);
-        } else if (check(17)) {
+        } else if (check(18)) {
             if (set) repeat_times = atoi(value);
             return to_string(repeat_times);
         } else
             throw runtime_error("Wrong parameter");
     }
 
-    // TODO potential to substitute for map
     map<string, string> getStringValues() {
         map<string, string> values;
         for (auto description : descriptions) {
@@ -258,9 +264,10 @@ struct HoughLinesPsets {
     }
 };
 
-struct Template {
-    std::vector<std::string> m_template_name_strings{"GRAD", "CHESS", "SOLID"};
-    enum TemplateNames { GRAD, CHESS, SOLID };
+struct TemplateDescription {
+    std::vector<std::string> m_template_name_strings{
+        "GRAD", "CHESS", "SOLID", "HORL", "VERTL", "CIRCLES"};
+    enum TemplateNames { GRAD, CHESS, SOLID, HORL, VERTL, CIRCLES };
 
     TemplateNames name;
 
@@ -284,7 +291,8 @@ struct Template {
     }
 
     void printParams() {
-        std::cout << "Template " << to_string(name) << " has params:\n";
+        std::cout << "TemplateDescription " << to_string(name)
+                  << " has params:\n";
         std::cout << "    scale = " << scale << std::endl;
         std::cout << "    speed_x = " << speed_x << std::endl;
         std::cout << "    speed_y = " << speed_y << std::endl;
@@ -323,35 +331,44 @@ class Settings {
     Config config;
     vector<ErosionDilation> erodil;
     HoughLinesPsets hough_params;
-    vector<Template> templates{{.name = Template::CHESS,
-                                .scale = 1,
-                                .speed_x = 1,
-                                .speed_y = 1,
-                                .speed_multiplier = 1,
-                                .param_a = 1,
-                                .param_b = 1,
-                                .param_c = 1,
-                                .objects = {0, 3, 5, 7}},
-                               {.name = Template::GRAD,
-                                .scale = 1,
-                                .speed_x = 1,
-                                .speed_y = 1,
-                                .speed_multiplier = 1,
-                                .param_a = 1,
-                                .param_b = 1,
-                                .param_c = 1,
-                                .objects = {1, 2, 4, 6}}};
+    vector<TemplateDescription> templates{{.name = TemplateDescription::HORL,
+                                           .scale = 1,
+                                           .speed_x = 1,
+                                           .speed_y = 1,
+                                           .speed_multiplier = 1,
+                                           .param_a = 1,
+                                           .param_b = 1,
+                                           .param_c = 1,
+                                           .objects = {0, 3, 5, 7}},
+                                          {.name = TemplateDescription::CIRCLES,
+                                           .scale = 1,
+                                           .speed_x = 1,
+                                           .speed_y = 1,
+                                           .speed_multiplier = 1,
+                                           .param_a = 1,
+                                           .param_b = 1,
+                                           .param_c = 1,
+                                           .objects = {1, 2, 4, 6}},
+                                          {.name = TemplateDescription::CHESS,
+                                           .scale = 1,
+                                           .speed_x = 1,
+                                           .speed_y = 1,
+                                           .speed_multiplier = 1,
+                                           .param_a = 1,
+                                           .param_b = 1,
+                                           .param_c = 1,
+                                           .objects = {2, 3, 4}}};
 
     Settings() {
         erodil.push_back({ErosionDilation::Type::Erosion, 3, 3});
         erodil.push_back({ErosionDilation::Type::Dilation, 3, 3});
     }
 
-    Printer::ERROR Init(int argc, char **argv) {
+    void Init(int argc, char **argv) {
         // TODO define if parse cli or file
 
         m_argc = argc, m_argv = argv;
-        if (argc <= 1) return Printer::ERROR::ARGS_FAILURE;
+        if (argc <= 1) throw runtime_error("Arguments failure: 1 or less");
 
         string filename = "";
         // TODO consider config location flag somehow...
@@ -362,7 +379,7 @@ class Settings {
         } else
             filename = first_argument;
 
-        if (filename.at(0) == '-') return Printer::ERROR::SUCCESS;
+        if (filename.at(0) == '-') return;
 
         size_t dot_pos = filename.find_last_of('.');
 
@@ -381,7 +398,7 @@ class Settings {
 
         config.file_path = filename;
 
-        return Printer::ERROR::SUCCESS;
+        return;
     }
 
     void Parse() {
@@ -409,7 +426,7 @@ class Settings {
 
             // TODO Make this string autocreated
             c = getopt_long(m_argc, m_argv,
-                            "hltrfO:C:Z:D:M:A:B:T:X:U:R:", m_long_options,
+                            "hltrxfO:C:Z:D:M:A:B:T:X:U:R:", m_long_options,
                             &option_index);
 
             if (c == -1) break;
@@ -437,8 +454,7 @@ class Settings {
     void ParseConfig() {
         nlohmann::json json;
 
-        // std::ifstream file(config.config_location + "config.json");
-        std::ifstream file("./Config/config.json");
+        std::ifstream file(config.config_location + "config.json");
         if (!file.is_open()) {
             throw runtime_error("Failed to open file");
         }
@@ -569,7 +585,7 @@ class Settings {
                 templates.clear();
                 for (const auto &entry : configuration["Templates"]) {
                     try {
-                        Template temp;
+                        TemplateDescription temp;
                         string name = entry["name"].get<string>();
                         temp.setName(name);
                         temp.scale = entry["scale"].get<int>();

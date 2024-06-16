@@ -1,0 +1,126 @@
+        [
+            {
+                "name": "Calib1",
+                "HoughLinesP": {
+                    "rho": 10,
+                    "theta_denom": 180,
+                    "threshold": 20,
+                    "min_line_length": 60,
+                    "max_line_gap": 10
+                }
+            },
+            {
+                "name": "Calib2",
+                "HoughLinesP": {
+                    "rho": 1,
+                    "theta_denom": 120,
+                    "threshold": 20,
+                    "min_line_length": 60,
+                    "max_line_gap": 10
+                }
+            },
+            {
+                "name": "Calib3",
+                "HoughLinesP": {
+                    "rho": 5,
+                    "theta_denom": 60,
+                    "threshold": 20,
+                    "min_line_length": 300,
+                    "max_line_gap": 10
+                }
+            },
+            {
+                "name": "Calib4",
+                "HoughLinesP": {
+                    "rho": 10,
+                    "theta_denom": 100,
+                    "threshold": 20,
+                    "min_line_length": 60,
+                    "max_line_gap": 10
+                }
+            },
+            {
+                "name": "Depth1",
+                "threshold": 5,
+                "texture_threshold": 10,
+                "fill_mode": true
+            },
+            {
+                "name": "Depth2",
+                "threshold": 50,
+                "texture_threshold": 100,
+                "fill_mode": true
+            },
+            {
+                "name": "Depth3",
+                "threshold": 30,
+                "texture_threshold": 60,
+                "fill_mode": false
+            },
+            {
+                "name": "Depth4",
+                "threshold": 70,
+                "texture_threshold": 100,
+                "fill_mode": false
+            },
+            {
+                "name": "Planes1",
+                "z_limit": 5,
+                "min_distance": 5,
+                "medium_limit": 5,
+                "min_area": 4000
+            },
+            {
+                "name": "Planes2",
+                "z_limit": 20,
+                "min_distance": 20,
+                "medium_limit": 5,
+                "min_area": 4000
+            },
+            {
+                "name": "Planes3",
+                "z_limit": 10,
+                "min_distance": 5,
+                "medium_limit": 10,
+                "min_area": 200
+            },
+            {
+                "name": "Planes4",
+                "z_limit": 10,
+                "min_distance": 5,
+                "medium_limit": 10,
+                "min_area": 4000
+            },
+            {
+                "name": "Planes1r",
+                "z_limit": 5,
+                "min_distance": 5,
+                "medium_limit": 5,
+                "min_area": 4000,
+                "recurse": true
+            },
+            {
+                "name": "Planes2r",
+                "z_limit": 10,
+                "min_distance": 10,
+                "medium_limit": 5,
+                "min_area": 4000,
+                "recurse": true
+            },
+            {
+                "name": "Planes3r",
+                "z_limit": 10,
+                "min_distance": 5,
+                "medium_limit": 10,
+                "min_area": 200,
+                "recurse": true
+            },
+            {
+                "name": "Planes4r",
+                "z_limit": 10,
+                "min_distance": 5,
+                "medium_limit": 10,
+                "min_area": 4000,
+                "recurse": true
+            }
+        ]
