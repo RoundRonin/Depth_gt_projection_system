@@ -48,8 +48,8 @@
             ],
             "HoughLinesP": {
                 "rho": 10,
-                "theta_denom": 100,
-                "threshold": 20,
+                "theta_denom": 120,
+                "threshold": 68,
                 "min_line_length": 60,
                 "max_line_gap": 10
             },
@@ -57,14 +57,34 @@
                 {
                     "name": "CHESS",
                     "scale": 1,
-                    "speed_x": 3,
-                    "speed_y": 3,
-                    "speed_multiplier": 3,
+                    "speed_x": 1,
+                    "speed_y": 1,
+                    "speed_multiplier": 1,
                     "param_a": 1,
                     "param_b": 1,
                     "param_c": 1,
                     "objects": [
-                        1
+                        1,
+                        2,
+                        3,
+                        4,
+                        5,
+                        6,
+                        7
+                    ]
+                },
+                {
+                    "name": "CHESS",
+                    "scale": 2,
+                    "speed_x": 2,
+                    "speed_y": 2,
+                    "speed_multiplier": 2,
+                    "param_a": 2,
+                    "param_b": 2,
+                    "param_c": 2,
+                    "objects": [
+                        2,
+                        3
                     ]
                 },
                 {
@@ -72,7 +92,7 @@
                     "scale": 1,
                     "speed_x": 1,
                     "speed_y": 1,
-                    "speed_multiplier": 2,
+                    "speed_multiplier": 1,
                     "param_a": 1,
                     "param_b": 1,
                     "param_c": 1,
@@ -82,15 +102,42 @@
                 },
                 {
                     "name": "HORL",
-                    "scale": 1,
+                    "scale": 10,
                     "speed_x": 1,
-                    "speed_y": 1,
+                    "speed_y": 10,
                     "speed_multiplier": 1,
                     "param_a": 255,
                     "param_b": 200,
                     "param_c": 200,
                     "objects": [
-                        0
+                        3
+                    ]
+                },
+                {
+                    "name": "VERTL",
+                    "scale": 1,
+                    "speed_x": 1,
+                    "speed_y": 10,
+                    "speed_multiplier": 1,
+                    "param_a": 200,
+                    "param_b": 200,
+                    "param_c": 200,
+                    "objects": [
+                        1,
+                        2
+                    ]
+                },
+                {
+                    "name": "CIRCLES",
+                    "scale": 10,
+                    "speed_x": 1,
+                    "speed_y": 1,
+                    "speed_multiplier": 1,
+                    "param_a": 222,
+                    "param_b": 175,
+                    "param_c": 175,
+                    "objects": [
+                        3
                     ]
                 }
             ]

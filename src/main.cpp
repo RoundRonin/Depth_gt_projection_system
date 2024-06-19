@@ -511,7 +511,8 @@ int main(int argc, char **argv) {
 
 // TODO graceful stop: destroy the class, join its threads
 void signalHandler(int signalNumber) {
-    if (signalNumber == SIGTERM || signalNumber == SIGHUP) {        std::cout << "Recieved interupt signal: " << signalNumber
+    if (signalNumber == SIGTERM || signalNumber == SIGHUP) {
+        std::cout << "Recieved interupt signal: " << signalNumber
                   << "\nExiting..." << std::endl;
         exit(signalNumber);
     }
